@@ -1,37 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    scaffoldBackgroundColor: AppColors.background,
+  static ThemeData get lightTheme {
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme();
 
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.accent,
-      brightness: Brightness.light,
-    ),
+    return ThemeData(
+      useMaterial3: true,
 
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.background,
-      foregroundColor: AppColors.textPrimary,
-      elevation: 0,
-      centerTitle: true,
-    ),
+      scaffoldBackgroundColor: AppColors.background,
 
-    textTheme: const TextTheme(
-      headlineLarge: TextStyle(
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.bold,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.accent,
+        brightness: Brightness.light,
+        surface: AppColors.surface,
       ),
-      bodyLarge: TextStyle(
-        color: AppColors.textPrimary,
+
+      textTheme: textTheme.apply(
+        bodyColor: AppColors.textPrimary,
+        displayColor: AppColors.textPrimary,
       ),
-      bodyMedium: TextStyle(
-        color: AppColors.textSecondary,
+
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
       ),
-    ),
-  );
+
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorColor: AppColors.accent.withValues(alpha: 0.12),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
 }
