@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../features/navigation/presentation/app_shell.dart';
 
 class ProjectNorthApp extends StatelessWidget {
   const ProjectNorthApp({super.key});
@@ -11,17 +12,7 @@ class ProjectNorthApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Project North',
       theme: AppTheme.lightTheme,
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Project North',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
+      home: const AppShell(),
     );
   }
 }
