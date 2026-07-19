@@ -13,12 +13,7 @@ class AppTypography {
     fontWeight: FontWeight.w700,
   );
 
-  static const TextStyle body = TextStyle(
-    fontSize: 16,
-  );
+  static const TextStyle body = TextStyle(fontSize: 16);
 
-  static const TextStyle caption = TextStyle(
-    fontSize: 14,
-    color: Colors.grey,
-  );
+  static const TextStyle caption = TextStyle(fontSize: 14, color: Colors.grey);
 }

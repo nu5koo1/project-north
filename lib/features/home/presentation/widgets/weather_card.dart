@@ -18,11 +18,7 @@ class WeatherCard extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.wb_sunny_rounded,
-            size: 44,
-            color: AppColors.warning,
-          ),
+          Icon(Icons.wb_sunny_rounded, size: 44, color: AppColors.warning),
           SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -30,34 +26,24 @@ class WeatherCard extends StatelessWidget {
               children: [
                 Text(
                   'Harstad',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 SizedBox(height: AppSpacing.xs),
                 Text(
                   'Perfect hiking weather',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
                 SizedBox(height: AppSpacing.xs),
                 Text(
                   'Sunset 21:47',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
               ],
             ),
           ),
           Text(
             '18°',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
           ),
         ],
       ),

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "178748326816",
+    "project_id": "project-north-7096e",
+    "storage_bucket": "project-north-7096e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:178748326816:android:1a1ffa242fde595dba1ac5",
+        "android_client_info": {
+          "package_name": "com.example.project_north"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXuXojsASIQ5E3NE57HowPx_tphhYC1BY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

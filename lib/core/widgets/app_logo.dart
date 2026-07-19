@@ -12,11 +12,7 @@ class AppLogo extends StatelessWidget {
         color: Colors.blue.shade700,
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Icon(
-        Icons.explore,
-        color: Colors.white,
-        size: 64,
-      ),
+      child: const Icon(Icons.explore, color: Colors.white, size: 64),
     );
   }
 }

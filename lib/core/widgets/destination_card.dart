@@ -42,26 +42,33 @@ class _DestinationCardState extends State<DestinationCard> {
     });
   }
 
+  void _toggleFavorite() {
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(AppRadius.lg);
 
     return AnimatedScale(
-      scale: _isPressed ? 0.985 : 1,
-      duration: const Duration(milliseconds: 140),
+      duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
+      scale: _isPressed ? 0.98 : 1,
       child: SizedBox(
-        width: 260,
-        height: 310,
+        width: 250,
+        height: 300,
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: borderRadius,
+            border: Border.all(color: Colors.black.withValues(alpha: 0.035)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x18000000),
-                blurRadius: 18,
-                offset: Offset(0, 8),
+                color: Color(0x12000000),
+                blurRadius: 14,
+                offset: Offset(0, 5),
               ),
             ],
           ),
@@ -72,13 +79,13 @@ class _DestinationCardState extends State<DestinationCard> {
             child: InkWell(
               onTap: widget.onTap,
               onTapDown: (_) => _setPressed(true),
-              onTapCancel: () => _setPressed(false),
               onTapUp: (_) => _setPressed(false),
+              onTapCancel: () => _setPressed(false),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    flex: 6,
+                    flex: 13,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -105,7 +112,7 @@ class _DestinationCardState extends State<DestinationCard> {
                               colors: [
                                 Color(0x22000000),
                                 Color(0x00000000),
-                                Color(0x99000000),
+                                Color(0xB3000000),
                               ],
                               stops: [0, 0.48, 1],
                             ),
@@ -114,22 +121,14 @@ class _DestinationCardState extends State<DestinationCard> {
                         Positioned(
                           top: AppSpacing.sm,
                           left: AppSpacing.sm,
-                          child: _GlassChip(
-                            icon: Icons.star_rounded,
-                            label: widget.rating.toStringAsFixed(1),
-                            iconColor: AppColors.warning,
-                          ),
+                          child: _GlassRatingChip(rating: widget.rating),
                         ),
                         Positioned(
                           top: AppSpacing.sm,
                           right: AppSpacing.sm,
                           child: _FavoriteButton(
                             isFavorite: _isFavorite,
-                            onPressed: () {
-                              setState(() {
-                                _isFavorite = !_isFavorite;
-                              });
-                            },
+                            onPressed: _toggleFavorite,
                           ),
                         ),
                         Positioned(
@@ -147,6 +146,14 @@ class _DestinationCardState extends State<DestinationCard> {
                                   color: Colors.white,
                                   fontSize: 21,
                                   fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.35,
+                                  shadows: [
+                                    Shadow(
+                                      color: Color(0x66000000),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.xs),
@@ -155,8 +162,16 @@ class _DestinationCardState extends State<DestinationCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.84),
+                                  color: Colors.white.withValues(alpha: 0.86),
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0x66000000),
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -166,9 +181,9 @@ class _DestinationCardState extends State<DestinationCard> {
                     ),
                   ),
                   Expanded(
-                    flex: 4,
+                    flex: 7,
                     child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                       child: Column(
                         children: [
                           Row(
@@ -179,7 +194,7 @@ class _DestinationCardState extends State<DestinationCard> {
                                   label: widget.distance,
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.sm),
+                              const SizedBox(width: 4),
                               Expanded(
                                 child: _DetailChip(
                                   icon: Icons.schedule_rounded,
@@ -220,78 +235,88 @@ class _DestinationCardState extends State<DestinationCard> {
   }
 }
 
-class _GlassChip extends StatelessWidget {
-  const _GlassChip({
-    required this.icon,
-    required this.label,
-    required this.iconColor,
-  });
+class _GlassRatingChip extends StatelessWidget {
+  const _GlassRatingChip({required this.rating});
 
-  final IconData icon;
-  final String label;
-  final Color iconColor;
+  final double rating;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.55),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 6,
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: iconColor,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.76),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.star_rounded, size: 17, color: AppColors.warning),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              rating.toStringAsFixed(1),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _FavoriteButton extends StatelessWidget {
-  const _FavoriteButton({
-    required this.isFavorite,
-    required this.onPressed,
-  });
+  const _FavoriteButton({required this.isFavorite, required this.onPressed});
 
   final bool isFavorite;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.9),
-      shape: const CircleBorder(),
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.9),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x29000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
       child: IconButton(
+        padding: EdgeInsets.zero,
         onPressed: onPressed,
         icon: AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
+          transitionBuilder: (child, animation) {
+            return ScaleTransition(scale: animation, child: child);
+          },
           child: Icon(
-            isFavorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
+            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             key: ValueKey(isFavorite),
-            color: isFavorite
-                ? const Color(0xFFEF4444)
-                : AppColors.textPrimary,
+            size: 21,
+            color: isFavorite ? const Color(0xFFEF4444) : AppColors.textPrimary,
           ),
         ),
       ),
@@ -300,10 +325,7 @@ class _FavoriteButton extends StatelessWidget {
 }
 
 class _DetailChip extends StatelessWidget {
-  const _DetailChip({
-    required this.icon,
-    required this.label,
-  });
+  const _DetailChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -311,22 +333,17 @@ class _DetailChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.background.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.055)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 17,
-            color: AppColors.accent,
-          ),
+          Icon(icon, size: 16, color: AppColors.accent),
           const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
@@ -336,6 +353,7 @@ class _DetailChip extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
             ),
           ),

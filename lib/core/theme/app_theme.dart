@@ -35,9 +35,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
 
       filledButtonTheme: FilledButtonThemeData(
@@ -46,26 +44,18 @@ class AppTheme {
           foregroundColor: AppColors.accent,
           elevation: 0,
           minimumSize: const Size(0, 52),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
 
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: AppColors.accent.withValues(alpha: 0.12),
         labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
     );

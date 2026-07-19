@@ -24,13 +24,27 @@ class AppSectionTitle extends StatelessWidget {
             title,
             style: AppTypography.heading2.copyWith(
               color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
         if (actionLabel != null)
           TextButton(
             onPressed: onActionPressed,
-            child: Text(actionLabel!),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              actionLabel!,
+              style: AppTypography.body.copyWith(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
           ),
       ],
     );
