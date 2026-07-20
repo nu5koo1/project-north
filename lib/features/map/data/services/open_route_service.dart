@@ -23,7 +23,7 @@ class OpenRouteService {
   }) async {
     if (_apiKey.trim().isEmpty) {
       throw const OpenRouteServiceException(
-        'ORS_API_KEY is missing. Start the app through the Project North '
+        'ORS_API_KEY is missing. Start the app through the Villmark '
         'configuration in VS Code.',
       );
     }

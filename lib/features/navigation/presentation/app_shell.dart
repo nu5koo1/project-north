@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../home/presentation/home_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../settings/presentation/settings_page.dart';
@@ -7,11 +9,13 @@ import '../../settings/presentation/settings_page.dart';
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
+    required this.appController,
     this.displayName = 'Traveler',
     this.email = '',
     this.onSignOut,
   });
 
+  final AppController appController;
   final String displayName;
   final String email;
   final Future<void> Function()? onSignOut;
@@ -36,7 +40,7 @@ class _AppShellState extends State<AppShell> {
         email: widget.email,
         onSignOut: widget.onSignOut,
       ),
-      const SettingsPage(),
+      SettingsPage(appController: widget.appController),
     ];
   }
 
@@ -52,26 +56,28 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onDestinationSelected,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home_rounded),
+            label: localizations.home,
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline_rounded),
+            selectedIcon: const Icon(Icons.person_rounded),
+            label: localizations.profile,
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings_rounded),
+            label: localizations.settings,
           ),
         ],
       ),

@@ -1,9 +1,12 @@
-// lib/features/settings/presentation/settings_page.dart
-
 import 'package:flutter/material.dart';
 
+import '../../../app/app_controller.dart';
+import '../../../l10n/app_localizations.dart';
+
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, required this.appController});
+
+  final AppController appController;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -12,48 +15,51 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   bool _weatherAlertsEnabled = true;
-  bool _locationEnabled = true;
-  bool _darkModeEnabled = false;
 
-  String _selectedLanguage = 'English';
-  String _selectedDistanceUnit = 'Kilometers';
+  String _selectedDistanceUnit = 'kilometers';
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
   }
 
   Future<void> _selectLanguage() async {
-    final result = await showModalBottomSheet<String>(
+    final selectedLocale = await showModalBottomSheet<Locale>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
       builder: (context) {
-        return const _SelectionSheet(
-          title: 'Language',
-          values: ['English', 'Norwegian', 'German', 'Russian'],
+        return _LanguageSelectionSheet(
+          currentLocale: widget.appController.locale,
         );
       },
     );
 
-    if (result == null || !mounted) {
+    if (selectedLocale == null || !mounted) {
       return;
     }
 
-    setState(() {
-      _selectedLanguage = result;
-    });
+    try {
+      await widget.appController.setLocale(selectedLocale);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(AppLocalizations.of(context).somethingWentWrong);
+    }
   }
 
   Future<void> _selectDistanceUnit() async {
     final result = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
       builder: (context) {
-        return const _SelectionSheet(
-          title: 'Distance units',
-          values: ['Kilometers', 'Miles'],
-        );
+        return _DistanceSelectionSheet(selectedValue: _selectedDistanceUnit);
       },
     );
 
@@ -66,8 +72,48 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  Future<void> _showAboutDialog() async {
+    final localizations = AppLocalizations.of(context);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(localizations.aboutVillmark),
+          content: Text(localizations.aboutVillmarkBody),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: Text(localizations.close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _setNotificationsEnabled(bool value) {
+    setState(() {
+      _notificationsEnabled = value;
+
+      if (!value) {
+        _weatherAlertsEnabled = false;
+      }
+    });
+  }
+
+  void _setWeatherAlertsEnabled(bool value) {
+    setState(() {
+      _weatherAlertsEnabled = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -87,7 +133,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _SettingsHeader(),
+                    _SettingsHeader(
+                      title: localizations.settings,
+                      subtitle: localizations.settingsDescription,
+                    ),
                     SizedBox(height: layout.sectionSpacing),
                     if (layout.useTwoColumns)
                       Row(
@@ -99,27 +148,23 @@ class _SettingsPageState extends State<SettingsPage> {
                                 _AccountSection(
                                   onPersonalInformationPressed: () {
                                     _showMessage(
-                                      'Personal information will be added next.',
+                                      localizations
+                                          .personalInformationDescription,
                                     );
                                   },
                                   onPrivacyPressed: () {
                                     _showMessage(
-                                      'Privacy settings will be added next.',
+                                      localizations
+                                          .privacyAndSecurityDescription,
                                     );
                                   },
                                 ),
                                 const SizedBox(height: 20),
                                 _PreferencesSection(
-                                  selectedLanguage: _selectedLanguage,
+                                  appController: widget.appController,
                                   selectedDistanceUnit: _selectedDistanceUnit,
-                                  locationEnabled: _locationEnabled,
                                   onLanguagePressed: _selectLanguage,
                                   onDistanceUnitPressed: _selectDistanceUnit,
-                                  onLocationChanged: (value) {
-                                    setState(() {
-                                      _locationEnabled = value;
-                                    });
-                                  },
                                 ),
                               ],
                             ),
@@ -131,51 +176,25 @@ class _SettingsPageState extends State<SettingsPage> {
                                 _NotificationsSection(
                                   notificationsEnabled: _notificationsEnabled,
                                   weatherAlertsEnabled: _weatherAlertsEnabled,
-                                  onNotificationsChanged: (value) {
-                                    setState(() {
-                                      _notificationsEnabled = value;
-
-                                      if (!value) {
-                                        _weatherAlertsEnabled = false;
-                                      }
-                                    });
-                                  },
+                                  onNotificationsChanged:
+                                      _setNotificationsEnabled,
                                   onWeatherAlertsChanged: _notificationsEnabled
-                                      ? (value) {
-                                          setState(() {
-                                            _weatherAlertsEnabled = value;
-                                          });
-                                        }
+                                      ? _setWeatherAlertsEnabled
                                       : null,
-                                ),
-                                const SizedBox(height: 20),
-                                _AppearanceSection(
-                                  darkModeEnabled: _darkModeEnabled,
-                                  onDarkModeChanged: (value) {
-                                    setState(() {
-                                      _darkModeEnabled = value;
-                                    });
-
-                                    _showMessage(
-                                      'Theme switching will be connected next.',
-                                    );
-                                  },
                                 ),
                                 const SizedBox(height: 20),
                                 _SupportSection(
                                   onHelpPressed: () {
                                     _showMessage(
-                                      'Help center will be added next.',
+                                      localizations.helpCenterDescription,
                                     );
                                   },
                                   onFeedbackPressed: () {
                                     _showMessage(
-                                      'Feedback form will be added next.',
+                                      localizations.sendFeedbackDescription,
                                     );
                                   },
-                                  onAboutPressed: () {
-                                    _showAboutDialog();
-                                  },
+                                  onAboutPressed: _showAboutDialog,
                                 ),
                               ],
                             ),
@@ -186,67 +205,38 @@ class _SettingsPageState extends State<SettingsPage> {
                       _AccountSection(
                         onPersonalInformationPressed: () {
                           _showMessage(
-                            'Personal information will be added next.',
+                            localizations.personalInformationDescription,
                           );
                         },
                         onPrivacyPressed: () {
-                          _showMessage('Privacy settings will be added next.');
+                          _showMessage(
+                            localizations.privacyAndSecurityDescription,
+                          );
                         },
                       ),
                       const SizedBox(height: 20),
                       _NotificationsSection(
                         notificationsEnabled: _notificationsEnabled,
                         weatherAlertsEnabled: _weatherAlertsEnabled,
-                        onNotificationsChanged: (value) {
-                          setState(() {
-                            _notificationsEnabled = value;
-
-                            if (!value) {
-                              _weatherAlertsEnabled = false;
-                            }
-                          });
-                        },
+                        onNotificationsChanged: _setNotificationsEnabled,
                         onWeatherAlertsChanged: _notificationsEnabled
-                            ? (value) {
-                                setState(() {
-                                  _weatherAlertsEnabled = value;
-                                });
-                              }
+                            ? _setWeatherAlertsEnabled
                             : null,
                       ),
                       const SizedBox(height: 20),
                       _PreferencesSection(
-                        selectedLanguage: _selectedLanguage,
+                        appController: widget.appController,
                         selectedDistanceUnit: _selectedDistanceUnit,
-                        locationEnabled: _locationEnabled,
                         onLanguagePressed: _selectLanguage,
                         onDistanceUnitPressed: _selectDistanceUnit,
-                        onLocationChanged: (value) {
-                          setState(() {
-                            _locationEnabled = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      _AppearanceSection(
-                        darkModeEnabled: _darkModeEnabled,
-                        onDarkModeChanged: (value) {
-                          setState(() {
-                            _darkModeEnabled = value;
-                          });
-
-                          _showMessage(
-                            'Theme switching will be connected next.',
-                          );
-                        },
                       ),
                       const SizedBox(height: 20),
                       _SupportSection(
                         onHelpPressed: () {
-                          _showMessage('Help center will be added next.');
+                          _showMessage(localizations.helpCenterDescription);
                         },
                         onFeedbackPressed: () {
-                          _showMessage('Feedback form will be added next.');
+                          _showMessage(localizations.sendFeedbackDescription);
                         },
                         onAboutPressed: _showAboutDialog,
                       ),
@@ -258,31 +248,6 @@ class _SettingsPageState extends State<SettingsPage> {
           );
         },
       ),
-    );
-  }
-
-  Future<void> _showAboutDialog() async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Project North'),
-          content: const Text(
-            'Project North helps travelers discover campsites, '
-            'hiking trails, fishing locations, camper stops, '
-            'guides, boats and outdoor adventures across Norway.\n\n'
-            'Version 1.0.0',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
     );
   }
 }
@@ -329,28 +294,31 @@ class _SettingsLayout {
 }
 
 class _SettingsHeader extends StatelessWidget {
-  const _SettingsHeader();
+  const _SettingsHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final theme = Theme.of(context);
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Settings',
-          style: TextStyle(
-            color: Color(0xFF101828),
-            fontSize: 34,
+          title,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             letterSpacing: -1,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
-          'Manage your account and app preferences.',
-          style: TextStyle(
-            color: Color(0xFF667085),
-            fontSize: 15,
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -370,20 +338,22 @@ class _AccountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return _SettingsSection(
-      title: 'Account',
+      title: localizations.account,
       children: [
         _SettingsActionTile(
           icon: Icons.person_outline_rounded,
-          title: 'Personal information',
-          subtitle: 'Name, email and profile details',
+          title: localizations.personalInformation,
+          subtitle: localizations.personalInformationDescription,
           onTap: onPersonalInformationPressed,
         ),
         const _SettingsDivider(),
         _SettingsActionTile(
           icon: Icons.lock_outline_rounded,
-          title: 'Privacy and security',
-          subtitle: 'Password, permissions and account security',
+          title: localizations.privacyAndSecurity,
+          subtitle: localizations.privacyAndSecurityDescription,
           onTap: onPrivacyPressed,
         ),
       ],
@@ -406,21 +376,23 @@ class _NotificationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return _SettingsSection(
-      title: 'Notifications',
+      title: localizations.notifications,
       children: [
         _SettingsSwitchTile(
           icon: Icons.notifications_none_rounded,
-          title: 'Push notifications',
-          subtitle: 'Trips, bookings and new recommendations',
+          title: localizations.pushNotifications,
+          subtitle: localizations.pushNotificationsDescription,
           value: notificationsEnabled,
           onChanged: onNotificationsChanged,
         ),
         const _SettingsDivider(),
         _SettingsSwitchTile(
           icon: Icons.cloud_outlined,
-          title: 'Weather alerts',
-          subtitle: 'Important weather changes for saved trips',
+          title: localizations.weatherAlerts,
+          subtitle: localizations.weatherAlertsDescription,
           value: weatherAlertsEnabled,
           onChanged: onWeatherAlertsChanged,
         ),
@@ -431,72 +403,44 @@ class _NotificationsSection extends StatelessWidget {
 
 class _PreferencesSection extends StatelessWidget {
   const _PreferencesSection({
-    required this.selectedLanguage,
+    required this.appController,
     required this.selectedDistanceUnit,
-    required this.locationEnabled,
     required this.onLanguagePressed,
     required this.onDistanceUnitPressed,
-    required this.onLocationChanged,
   });
 
-  final String selectedLanguage;
+  final AppController appController;
   final String selectedDistanceUnit;
-  final bool locationEnabled;
   final VoidCallback onLanguagePressed;
   final VoidCallback onDistanceUnitPressed;
-  final ValueChanged<bool> onLocationChanged;
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    final selectedLanguage = appController.isNorwegianBokmal
+        ? localizations.norwegianBokmal
+        : localizations.english;
+
+    final selectedDistance = selectedDistanceUnit == 'kilometers'
+        ? localizations.kilometers
+        : localizations.miles;
+
     return _SettingsSection(
-      title: 'Preferences',
+      title: localizations.preferences,
       children: [
         _SettingsValueTile(
           icon: Icons.language_rounded,
-          title: 'Language',
+          title: localizations.language,
           value: selectedLanguage,
           onTap: onLanguagePressed,
         ),
         const _SettingsDivider(),
         _SettingsValueTile(
           icon: Icons.straighten_rounded,
-          title: 'Distance units',
-          value: selectedDistanceUnit,
+          title: localizations.distanceUnits,
+          value: selectedDistance,
           onTap: onDistanceUnitPressed,
-        ),
-        const _SettingsDivider(),
-        _SettingsSwitchTile(
-          icon: Icons.location_on_outlined,
-          title: 'Location services',
-          subtitle: 'Use location for nearby places and routes',
-          value: locationEnabled,
-          onChanged: onLocationChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _AppearanceSection extends StatelessWidget {
-  const _AppearanceSection({
-    required this.darkModeEnabled,
-    required this.onDarkModeChanged,
-  });
-
-  final bool darkModeEnabled;
-  final ValueChanged<bool> onDarkModeChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SettingsSection(
-      title: 'Appearance',
-      children: [
-        _SettingsSwitchTile(
-          icon: Icons.dark_mode_outlined,
-          title: 'Dark mode',
-          subtitle: 'Use a darker color theme',
-          value: darkModeEnabled,
-          onChanged: onDarkModeChanged,
         ),
       ],
     );
@@ -516,27 +460,29 @@ class _SupportSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return _SettingsSection(
-      title: 'Support',
+      title: localizations.support,
       children: [
         _SettingsActionTile(
           icon: Icons.help_outline_rounded,
-          title: 'Help center',
-          subtitle: 'Guides and frequently asked questions',
+          title: localizations.helpCenter,
+          subtitle: localizations.helpCenterDescription,
           onTap: onHelpPressed,
         ),
         const _SettingsDivider(),
         _SettingsActionTile(
           icon: Icons.chat_bubble_outline_rounded,
-          title: 'Send feedback',
-          subtitle: 'Tell us how we can improve',
+          title: localizations.sendFeedback,
+          subtitle: localizations.sendFeedbackDescription,
           onTap: onFeedbackPressed,
         ),
         const _SettingsDivider(),
         _SettingsActionTile(
           icon: Icons.info_outline_rounded,
-          title: 'About Project North',
-          subtitle: 'Version and application information',
+          title: localizations.aboutVillmark,
+          subtitle: localizations.aboutVillmarkDescription,
           onTap: onAboutPressed,
         ),
       ],
@@ -552,21 +498,30 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(22),
+      side: BorderSide(color: theme.colorScheme.outlineVariant),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF101828),
-            fontSize: 20,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          decoration: _settingsCardDecoration(),
+        Material(
+          color: theme.colorScheme.surface,
+          elevation: 1,
+          shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.12),
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
           child: Column(children: children),
         ),
       ],
@@ -589,29 +544,31 @@ class _SettingsActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       leading: _SettingsIcon(icon: icon),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF101828),
+        style: TextStyle(
+          color: colorScheme.onSurface,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          color: Color(0xFF667085),
+        style: TextStyle(
+          color: colorScheme.onSurfaceVariant,
           fontSize: 12,
           height: 1.4,
         ),
       ),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.chevron_right_rounded,
-        color: Color(0xFF98A2B3),
+        color: colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -632,14 +589,16 @@ class _SettingsValueTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       leading: _SettingsIcon(icon: icon),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF101828),
+        style: TextStyle(
+          color: colorScheme.onSurface,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
@@ -649,14 +608,17 @@ class _SettingsValueTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF667085),
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFF98A2B3)),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: colorScheme.onSurfaceVariant,
+          ),
         ],
       ),
     );
@@ -680,17 +642,20 @@ class _SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final enabled = onChanged != null;
+
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-      secondary: _SettingsIcon(icon: icon),
+      secondary: _SettingsIcon(icon: icon, enabled: enabled),
       title: Text(
         title,
         style: TextStyle(
-          color: onChanged == null
-              ? const Color(0xFF98A2B3)
-              : const Color(0xFF101828),
+          color: enabled
+              ? colorScheme.onSurface
+              : colorScheme.onSurface.withValues(alpha: 0.45),
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
@@ -698,9 +663,9 @@ class _SettingsSwitchTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          color: onChanged == null
-              ? const Color(0xFFB8C0CC)
-              : const Color(0xFF667085),
+          color: enabled
+              ? colorScheme.onSurfaceVariant
+              : colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
           fontSize: 12,
           height: 1.4,
         ),
@@ -710,20 +675,31 @@ class _SettingsSwitchTile extends StatelessWidget {
 }
 
 class _SettingsIcon extends StatelessWidget {
-  const _SettingsIcon({required this.icon});
+  const _SettingsIcon({required this.icon, this.enabled = true});
 
   final IconData icon;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF4FF),
+        color: colorScheme.primaryContainer.withValues(
+          alpha: enabled ? 1 : 0.45,
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
+      child: Icon(
+        icon,
+        color: colorScheme.onPrimaryContainer.withValues(
+          alpha: enabled ? 1 : 0.45,
+        ),
+        size: 22,
+      ),
     );
   }
 }
@@ -733,64 +709,132 @@ class _SettingsDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 80, color: Color(0xFFEAECF0));
+    return Divider(
+      height: 1,
+      indent: 80,
+      color: Theme.of(context).colorScheme.outlineVariant,
+    );
   }
 }
 
-class _SelectionSheet extends StatelessWidget {
-  const _SelectionSheet({required this.title, required this.values});
+class _LanguageSelectionSheet extends StatelessWidget {
+  const _LanguageSelectionSheet({required this.currentLocale});
 
-  final String title;
-  final List<String> values;
+  final Locale currentLocale;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF101828),
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 14),
-            ...values.map((value) {
-              return ListTile(
-                onTap: () {
-                  Navigator.of(context).pop(value);
-                },
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-              );
-            }),
-          ],
-        ),
+    final localizations = AppLocalizations.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations.language,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          _LanguageTile(
+            flag: '🇬🇧',
+            title: localizations.english,
+            selected: currentLocale.languageCode == 'en',
+            onTap: () {
+              Navigator.of(context).pop(AppController.englishLocale);
+            },
+          ),
+          _LanguageTile(
+            flag: '🇳🇴',
+            title: localizations.norwegianBokmal,
+            selected: currentLocale.languageCode == 'nb',
+            onTap: () {
+              Navigator.of(context).pop(AppController.norwegianBokmalLocale);
+            },
+          ),
+        ],
       ),
     );
   }
 }
 
-BoxDecoration _settingsCardDecoration() {
-  return BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(color: const Color(0xFFEAECF0)),
-    boxShadow: const [
-      BoxShadow(color: Color(0x0F101828), blurRadius: 20, offset: Offset(0, 8)),
-    ],
-  );
+class _LanguageTile extends StatelessWidget {
+  const _LanguageTile({
+    required this.flag,
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String flag;
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      leading: Text(flag, style: const TextStyle(fontSize: 28)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded)
+          : const Icon(Icons.chevron_right_rounded),
+    );
+  }
+}
+
+class _DistanceSelectionSheet extends StatelessWidget {
+  const _DistanceSelectionSheet({required this.selectedValue});
+
+  final String selectedValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations.distanceUnits,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(localizations.kilometers),
+            trailing: selectedValue == 'kilometers'
+                ? const Icon(Icons.check_circle_rounded)
+                : const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).pop('kilometers');
+            },
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(localizations.miles),
+            trailing: selectedValue == 'miles'
+                ? const Icon(Icons.check_circle_rounded)
+                : const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).pop('miles');
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
