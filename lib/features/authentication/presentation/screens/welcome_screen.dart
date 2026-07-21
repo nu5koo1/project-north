@@ -362,7 +362,7 @@ class _WelcomeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/images/welcome_camp_background.png',
+      'assets/images/welcome_camp_background.jpg',
       fit: BoxFit.cover,
       alignment: Alignment.topCenter,
       filterQuality: FilterQuality.high,
@@ -466,7 +466,7 @@ class _AuthBrand extends StatelessWidget {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 2.6,
-              height: 1.2,
+              height: -1,
             ),
           ),
         ),

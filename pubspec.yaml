@@ -26,6 +26,7 @@ dependencies:
   latlong2: ^0.10.1
   phosphor_flutter: ^2.1.0
   shared_preferences: ^2.5.5
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -42,7 +43,7 @@ flutter:
 
   assets:
     - assets/images/project_north_welcome_logo.png
-    - assets/images/welcome_camp_background.png
+    - assets/images/welcome_camp_background.jpg
     - assets/images/project_north_splash.png
     - assets/images/project_north_app_icon.png
     - assets/images/villmark_icon_ios.png

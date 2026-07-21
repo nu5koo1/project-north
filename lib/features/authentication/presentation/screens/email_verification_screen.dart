@@ -153,7 +153,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/welcome_camp_background.png',
+            'assets/images/welcome_camp_background.jpg',
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
             filterQuality: FilterQuality.high,

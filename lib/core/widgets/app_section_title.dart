@@ -18,31 +18,36 @@ class AppSectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Text(
             title,
             style: AppTypography.heading2.copyWith(
               color: AppColors.textPrimary,
+              fontSize: 23,
               fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
             ),
           ),
         ),
         if (actionLabel != null)
-          TextButton(
+          TextButton.icon(
             onPressed: onActionPressed,
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              foregroundColor: AppColors.ocean,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Text(
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+            label: Text(
               actionLabel!,
               style: AppTypography.body.copyWith(
-                color: AppColors.accent,
+                color: AppColors.ocean,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
-                fontSize: 15,
               ),
             ),
           ),

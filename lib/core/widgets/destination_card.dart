@@ -35,7 +35,9 @@ class _DestinationCardState extends State<DestinationCard> {
   bool _isFavorite = false;
 
   void _setPressed(bool value) {
-    if (_isPressed == value) return;
+    if (_isPressed == value) {
+      return;
+    }
 
     setState(() {
       _isPressed = value;
@@ -53,22 +55,22 @@ class _DestinationCardState extends State<DestinationCard> {
     final borderRadius = BorderRadius.circular(AppRadius.lg);
 
     return AnimatedScale(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 170),
       curve: Curves.easeOutCubic,
-      scale: _isPressed ? 0.98 : 1,
+      scale: _isPressed ? 0.985 : 1,
       child: SizedBox(
-        width: 250,
-        height: 300,
+        width: 270,
+        height: 318,
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: borderRadius,
-            border: Border.all(color: Colors.black.withValues(alpha: 0.035)),
-            boxShadow: const [
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 14,
-                offset: Offset(0, 5),
+                color: AppColors.shadow.withValues(alpha: 0.08),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -78,112 +80,33 @@ class _DestinationCardState extends State<DestinationCard> {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: widget.onTap,
-              onTapDown: (_) => _setPressed(true),
-              onTapUp: (_) => _setPressed(false),
-              onTapCancel: () => _setPressed(false),
+              onTapDown: (_) {
+                _setPressed(true);
+              },
+              onTapUp: (_) {
+                _setPressed(false);
+              },
+              onTapCancel: () {
+                _setPressed(false);
+              },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     flex: 13,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.network(
-                          widget.image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: AppColors.background,
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.landscape_rounded,
-                                size: 58,
-                                color: AppColors.accent,
-                              ),
-                            );
-                          },
-                        ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0x22000000),
-                                Color(0x00000000),
-                                Color(0xB3000000),
-                              ],
-                              stops: [0, 0.48, 1],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: AppSpacing.sm,
-                          left: AppSpacing.sm,
-                          child: _GlassRatingChip(rating: widget.rating),
-                        ),
-                        Positioned(
-                          top: AppSpacing.sm,
-                          right: AppSpacing.sm,
-                          child: _FavoriteButton(
-                            isFavorite: _isFavorite,
-                            onPressed: _toggleFavorite,
-                          ),
-                        ),
-                        Positioned(
-                          left: AppSpacing.md,
-                          right: AppSpacing.md,
-                          bottom: AppSpacing.md,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.35,
-                                  shadows: [
-                                    Shadow(
-                                      color: Color(0x66000000),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                widget.subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.86),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0x66000000),
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    child: _DestinationImage(
+                      image: widget.image,
+                      title: widget.title,
+                      subtitle: widget.subtitle,
+                      rating: widget.rating,
+                      isFavorite: _isFavorite,
+                      onFavoritePressed: _toggleFavorite,
                     ),
                   ),
                   Expanded(
                     flex: 7,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
                       child: Column(
                         children: [
                           Row(
@@ -194,7 +117,7 @@ class _DestinationCardState extends State<DestinationCard> {
                                   label: widget.distance,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 7),
                               Expanded(
                                 child: _DetailChip(
                                   icon: Icons.schedule_rounded,
@@ -203,7 +126,7 @@ class _DestinationCardState extends State<DestinationCard> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: AppSpacing.sm),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
@@ -212,11 +135,12 @@ class _DestinationCardState extends State<DestinationCard> {
                                   label: widget.difficulty,
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.sm),
+                              const SizedBox(width: 7),
                               const Expanded(
                                 child: _DetailChip(
-                                  icon: Icons.wb_sunny_outlined,
+                                  icon: Icons.wb_sunny_rounded,
                                   label: 'Best today',
+                                  isWeather: true,
                                 ),
                               ),
                             ],
@@ -235,47 +159,156 @@ class _DestinationCardState extends State<DestinationCard> {
   }
 }
 
-class _GlassRatingChip extends StatelessWidget {
-  const _GlassRatingChip({required this.rating});
+class _DestinationImage extends StatelessWidget {
+  const _DestinationImage({
+    required this.image,
+    required this.title,
+    required this.subtitle,
+    required this.rating,
+    required this.isFavorite,
+    required this.onFavoritePressed,
+  });
+
+  final String image;
+  final String title;
+  final String subtitle;
+  final double rating;
+  final bool isFavorite;
+  final VoidCallback onFavoritePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          image,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return child;
+            }
+
+            return const ColoredBox(
+              color: AppColors.surfaceMuted,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return const ColoredBox(
+              color: AppColors.primaryContainer,
+              child: Center(
+                child: Icon(
+                  Icons.landscape_rounded,
+                  size: 58,
+                  color: AppColors.primary,
+                ),
+              ),
+            );
+          },
+        ),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x22000000), Color(0x00000000), Color(0xCC000000)],
+              stops: [0, 0.48, 1],
+            ),
+          ),
+        ),
+        Positioned(
+          top: AppSpacing.sm,
+          left: AppSpacing.sm,
+          child: _RatingChip(rating: rating),
+        ),
+        Positioned(
+          top: AppSpacing.sm,
+          right: AppSpacing.sm,
+          child: _FavoriteButton(
+            isFavorite: isFavorite,
+            onPressed: onFavoritePressed,
+          ),
+        ),
+        Positioned(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          bottom: AppSpacing.md,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x66000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RatingChip extends StatelessWidget {
+  const _RatingChip({required this.rating});
 
   final double rating;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.76),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: Colors.white),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 17, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            rating.toStringAsFixed(1),
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.star_rounded, size: 17, color: AppColors.warning),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              rating.toStringAsFixed(1),
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -289,24 +322,18 @@ class _FavoriteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.9),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x29000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: IconButton(
+    return SizedBox(
+      width: 41,
+      height: 41,
+      child: IconButton.filled(
         padding: EdgeInsets.zero,
         onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          foregroundColor: isFavorite ? AppColors.error : AppColors.primary,
+          shadowColor: AppColors.shadow.withValues(alpha: 0.18),
+          elevation: 2,
+        ),
         icon: AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
           transitionBuilder: (child, animation) {
@@ -316,7 +343,6 @@ class _FavoriteButton extends StatelessWidget {
             isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             key: ValueKey(isFavorite),
             size: 21,
-            color: isFavorite ? const Color(0xFFEF4444) : AppColors.textPrimary,
           ),
         ),
       ),
@@ -325,25 +351,41 @@ class _FavoriteButton extends StatelessWidget {
 }
 
 class _DetailChip extends StatelessWidget {
-  const _DetailChip({required this.icon, required this.label});
+  const _DetailChip({
+    required this.icon,
+    required this.label,
+    this.isWeather = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool isWeather;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 37,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.72),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.055)),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: AppColors.accent),
+          Icon(
+            icon,
+            size: 16,
+            color: isWeather ? AppColors.warning : AppColors.primary,
+          ),
           const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
@@ -351,9 +393,9 @@ class _DetailChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12,
+                color: Colors.black,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
               ),
             ),
           ),

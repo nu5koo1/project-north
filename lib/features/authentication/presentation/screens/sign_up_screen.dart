@@ -366,7 +366,7 @@ class _SignUpBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/images/welcome_camp_background.png',
+      'assets/images/welcome_camp_background.jpg',
       fit: BoxFit.cover,
       alignment: Alignment.topCenter,
       filterQuality: FilterQuality.high,
