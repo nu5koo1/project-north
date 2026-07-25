@@ -5,9 +5,13 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../destinations/data/models/place.dart';
+import '../../../destinations/data/services/firestore_place_service.dart';
 
 class ExploreMapScreen extends StatefulWidget {
-  const ExploreMapScreen({super.key});
+  const ExploreMapScreen({super.key, this.placeService});
+
+  final FirestorePlaceService? placeService;
 
   @override
   State<ExploreMapScreen> createState() => _ExploreMapScreenState();
@@ -16,49 +20,27 @@ class ExploreMapScreen extends StatefulWidget {
 class _ExploreMapScreenState extends State<ExploreMapScreen> {
   static const LatLng _norwayCenter = LatLng(64.5732, 11.5280);
 
-  static const List<_MapPlace> _places = [
-    _MapPlace(
-      title: 'Reinebringen',
-      category: 'Hiking',
-      position: LatLng(67.9324, 13.0896),
-      icon: Icons.hiking_rounded,
-    ),
-    _MapPlace(
-      title: 'Trolltunga',
-      category: 'Hiking',
-      position: LatLng(60.1240, 6.7400),
-      icon: Icons.terrain_rounded,
-    ),
-    _MapPlace(
-      title: 'Senja',
-      category: 'Photo spot',
-      position: LatLng(69.2586, 17.6130),
-      icon: Icons.photo_camera_rounded,
-    ),
-    _MapPlace(
-      title: 'Jotunheimen',
-      category: 'Camping',
-      position: LatLng(61.5300, 8.3000),
-      icon: Icons.cabin_rounded,
-    ),
-    _MapPlace(
-      title: 'Hardangervidda',
-      category: 'Wild camping',
-      position: LatLng(60.1400, 7.4500),
-      icon: Icons.landscape_rounded,
-    ),
-  ];
-
   final MapController _mapController = MapController();
 
-  _MapPlace? _selectedPlace;
+  late final FirestorePlaceService _placeService;
+  late final Stream<List<Place>> _placesStream;
 
-  void _selectPlace(_MapPlace place) {
+  Place? _selectedPlace;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _placeService = widget.placeService ?? FirestorePlaceService();
+    _placesStream = _placeService.watchApprovedPlaces();
+  }
+
+  void _selectPlace(Place place) {
     setState(() {
       _selectedPlace = place;
     });
 
-    _mapController.move(place.position, 10);
+    _mapController.move(LatLng(place.latitude, place.longitude), 13);
   }
 
   void _closePlaceCard() {
@@ -75,75 +57,163 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     });
   }
 
+  IconData _iconForCategory(String category) {
+    switch (category.trim().toLowerCase()) {
+      case 'camping':
+        return Icons.cabin_rounded;
+
+      case 'parking':
+        return Icons.local_parking_rounded;
+
+      case 'wild camping':
+        return Icons.forest_rounded;
+
+      case 'camper service':
+        return Icons.rv_hookup_rounded;
+
+      case 'fishing':
+        return Icons.phishing_rounded;
+
+      case 'hiking':
+        return Icons.hiking_rounded;
+
+      case 'boat rental':
+        return Icons.sailing_rounded;
+
+      case 'viewpoint':
+        return Icons.landscape_rounded;
+
+      case 'water point':
+        return Icons.water_drop_rounded;
+
+      case 'photo spot':
+        return Icons.photo_camera_rounded;
+
+      case 'drone spot':
+        return Icons.flight_rounded;
+
+      case 'wildlife':
+        return Icons.pets_rounded;
+
+      default:
+        return Icons.place_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: _norwayCenter,
-              initialZoom: 4.4,
-              minZoom: 3,
-              maxZoom: 18,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.villmark.app',
-              ),
-              MarkerLayer(
-                markers: _places.map((place) {
-                  final isSelected = _selectedPlace == place;
+      child: StreamBuilder<List<Place>>(
+        stream: _placesStream,
+        builder: (context, snapshot) {
+          final places = snapshot.data ?? const <Place>[];
 
-                  return Marker(
-                    point: place.position,
-                    width: 54,
-                    height: 54,
-                    child: _PlaceMarker(
-                      place: place,
-                      isSelected: isSelected,
-                      onTap: () {
-                        _selectPlace(place);
-                      },
-                    ),
-                  );
-                }).toList(),
+          return Stack(
+            children: [
+              FlutterMap(
+                mapController: _mapController,
+                options: const MapOptions(
+                  initialCenter: _norwayCenter,
+                  initialZoom: 4.4,
+                  minZoom: 3,
+                  maxZoom: 18,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.villmark.app',
+                  ),
+                  MarkerLayer(
+                    markers: places.map((place) {
+                      final isSelected = _selectedPlace?.id == place.id;
+
+                      return Marker(
+                        point: LatLng(place.latitude, place.longitude),
+                        width: 56,
+                        height: 56,
+                        child: _PlaceMarker(
+                          icon: _iconForCategory(place.category),
+                          isSelected: isSelected,
+                          onTap: () {
+                            _selectPlace(place);
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
+              Positioned(
+                top: AppSpacing.md,
+                left: AppSpacing.md,
+                right: AppSpacing.md,
+                child: _MapHeader(
+                  placeCount: places.length,
+                  isLoading:
+                      snapshot.connectionState == ConnectionState.waiting,
+                ),
+              ),
+              Positioned(
+                right: AppSpacing.md,
+                bottom: _selectedPlace == null ? 24 : 174,
+                child: FloatingActionButton.small(
+                  heroTag: 'reset-map',
+                  onPressed: _resetMap,
+                  tooltip: 'Show all Norway',
+                  child: const Icon(Icons.center_focus_strong_rounded),
+                ),
+              ),
+              if (snapshot.hasError)
+                Positioned(
+                  left: AppSpacing.md,
+                  right: AppSpacing.md,
+                  top: 90,
+                  child: _MapErrorBanner(
+                    message: _errorMessage(snapshot.error),
+                  ),
+                ),
+              if (!snapshot.hasError &&
+                  snapshot.connectionState == ConnectionState.active &&
+                  places.isEmpty)
+                const Positioned(
+                  left: AppSpacing.md,
+                  right: AppSpacing.md,
+                  top: 90,
+                  child: _EmptyMapBanner(),
+                ),
+              if (_selectedPlace case final place?)
+                Positioned(
+                  left: AppSpacing.md,
+                  right: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                  child: _SelectedPlaceCard(
+                    place: place,
+                    icon: _iconForCategory(place.category),
+                    onClose: _closePlaceCard,
+                  ),
+                ),
             ],
-          ),
-          const Positioned(
-            top: AppSpacing.md,
-            left: AppSpacing.md,
-            right: AppSpacing.md,
-            child: _MapHeader(),
-          ),
-          Positioned(
-            right: AppSpacing.md,
-            bottom: _selectedPlace == null ? 24 : 154,
-            child: FloatingActionButton.small(
-              heroTag: 'reset-map',
-              onPressed: _resetMap,
-              tooltip: 'Show all Norway',
-              child: const Icon(Icons.center_focus_strong_rounded),
-            ),
-          ),
-          if (_selectedPlace case final place?)
-            Positioned(
-              left: AppSpacing.md,
-              right: AppSpacing.md,
-              bottom: AppSpacing.md,
-              child: _SelectedPlaceCard(place: place, onClose: _closePlaceCard),
-            ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  String _errorMessage(Object? error) {
+    if (error is PlaceServiceException) {
+      return error.message;
+    }
+
+    return 'Places could not be loaded.';
   }
 }
 
 class _MapHeader extends StatelessWidget {
-  const _MapHeader();
+  const _MapHeader({required this.placeCount, required this.isLoading});
+
+  final int placeCount;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -152,13 +222,16 @@ class _MapHeader extends StatelessWidget {
       elevation: 4,
       shadowColor: AppColors.shadow.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 13),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 13,
+        ),
         child: Row(
           children: [
-            Icon(Icons.map_rounded, color: AppColors.primary),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(
+            const Icon(Icons.map_rounded, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
               child: Text(
                 'Explore Norway',
                 style: TextStyle(
@@ -168,14 +241,21 @@ class _MapHeader extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              '5 places',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            if (isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Text(
+                '$placeCount ${placeCount == 1 ? 'place' : 'places'}',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -185,12 +265,12 @@ class _MapHeader extends StatelessWidget {
 
 class _PlaceMarker extends StatelessWidget {
   const _PlaceMarker({
-    required this.place,
+    required this.icon,
     required this.isSelected,
     required this.onTap,
   });
 
-  final _MapPlace place;
+  final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -200,7 +280,7 @@ class _PlaceMarker extends StatelessWidget {
       onTap: onTap,
       child: AnimatedScale(
         duration: const Duration(milliseconds: 180),
-        scale: isSelected ? 1.15 : 1,
+        scale: isSelected ? 1.16 : 1,
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : AppColors.surface,
@@ -208,14 +288,14 @@ class _PlaceMarker extends StatelessWidget {
             border: Border.all(color: AppColors.primary, width: 2),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow.withValues(alpha: 0.18),
+                color: AppColors.shadow.withValues(alpha: 0.2),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
             ],
           ),
           child: Icon(
-            place.icon,
+            icon,
             color: isSelected ? Colors.white : AppColors.primary,
             size: 24,
           ),
@@ -226,9 +306,14 @@ class _PlaceMarker extends StatelessWidget {
 }
 
 class _SelectedPlaceCard extends StatelessWidget {
-  const _SelectedPlaceCard({required this.place, required this.onClose});
+  const _SelectedPlaceCard({
+    required this.place,
+    required this.icon,
+    required this.onClose,
+  });
 
-  final _MapPlace place;
+  final Place place;
+  final IconData icon;
   final VoidCallback onClose;
 
   @override
@@ -243,13 +328,13 @@ class _SelectedPlaceCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
                 color: AppColors.primaryContainer,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: Icon(place.icon, color: AppColors.primary),
+              child: Icon(icon, color: AppColors.primary),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -257,7 +342,9 @@ class _SelectedPlaceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    place.title,
+                    place.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
@@ -268,9 +355,20 @@ class _SelectedPlaceCard extends StatelessWidget {
                   Text(
                     place.category,
                     style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    place.locationName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -288,16 +386,68 @@ class _SelectedPlaceCard extends StatelessWidget {
   }
 }
 
-class _MapPlace {
-  const _MapPlace({
-    required this.title,
-    required this.category,
-    required this.position,
-    required this.icon,
-  });
+class _MapErrorBanner extends StatelessWidget {
+  const _MapErrorBanner({required this.message});
 
-  final String title;
-  final String category;
-  final LatLng position;
-  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: AppColors.error),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyMapBanner extends StatelessWidget {
+  const _EmptyMapBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: const Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.primary),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'No approved places are available yet.',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
