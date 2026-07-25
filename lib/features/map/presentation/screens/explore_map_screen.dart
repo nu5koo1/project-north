@@ -21,7 +21,7 @@ class ExploreMapScreen extends StatefulWidget {
   const ExploreMapScreen({
     super.key,
     this.placeService,
-    this.isPremium = false,
+    this.isPremium = true,
   });
 
   final FirestorePlaceService? placeService;
