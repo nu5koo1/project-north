@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     required this.displayName,
     required this.email,
+    this.onOpenSettings,
     this.onSignOut,
   });
 
   final String displayName;
   final String email;
+  final Future<void> Function()? onOpenSettings;
   final Future<void> Function()? onSignOut;
 
   @override
@@ -19,15 +25,19 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool _isSigningOut = false;
 
+  String get _displayName {
+    final value = widget.displayName.trim();
+    return value.isEmpty ? 'Traveler' : value;
+  }
+
   String get _initials {
-    final words = widget.displayName
-        .trim()
+    final words = _displayName
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty)
         .toList();
 
     if (words.isEmpty) {
-      return 'PN';
+      return 'V';
     }
 
     if (words.length == 1) {
@@ -87,68 +97,78 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.displayName.trim().isEmpty
-        ? 'Traveler'
-        : widget.displayName.trim();
-
     final email = widget.email.trim();
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: Color(0xFF101828),
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _ProfileCard(
-                  displayName: displayName,
-                  email: email,
-                  initials: _initials,
-                ),
-                const SizedBox(height: 24),
-                const _StatisticsCard(),
-                if (widget.onSignOut != null) ...[
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: OutlinedButton.icon(
-                      onPressed: _isSigningOut ? null : _confirmSignOut,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFD92D20),
-                        side: const BorderSide(color: Color(0xFFFDA29B)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      icon: _isSigningOut
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.logout_rounded),
-                      label: Text(
-                        _isSigningOut ? 'Signing out...' : 'Sign out',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
+    return ColoredBox(
+      color: AppColors.background,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.xxl,
+          ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _ProfileCard(
+                    displayName: _displayName,
+                    email: email,
+                    initials: _initials,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _StatisticsCard(),
+                  if (widget.onOpenSettings != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    _ProfileActionTile(
+                      icon: Icons.settings_outlined,
+                      title: 'Settings',
+                      subtitle: 'Language, notifications and preferences',
+                      onTap: widget.onOpenSettings!,
+                    ),
+                  ],
+                  if (widget.onSignOut != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isSigningOut ? null : _confirmSignOut,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: Color(0xFFF1B8B3)),
+                        ),
+                        icon: _isSigningOut
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.logout_rounded),
+                        label: Text(
+                          _isSigningOut ? 'Signing out...' : 'Sign out',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -172,28 +192,28 @@ class _ProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: _cardDecoration(),
       child: Column(
         children: [
           CircleAvatar(
-            radius: 48,
-            backgroundColor: const Color(0xFFEEF4FF),
+            radius: 46,
+            backgroundColor: AppColors.primaryContainer,
             child: Text(
               initials,
               style: const TextStyle(
-                color: Color(0xFF2563EB),
-                fontSize: 30,
+                color: AppColors.primary,
+                fontSize: 28,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Text(
             displayName,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF101828),
+              color: AppColors.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
@@ -202,38 +222,36 @@ class _ProfileCard extends StatelessWidget {
           Text(
             email.isEmpty ? 'No email added' : email,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF667085), fontSize: 14),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
-          const SizedBox(height: 18),
-          const _VerifiedBadge(),
-        ],
-      ),
-    );
-  }
-}
-
-class _VerifiedBadge extends StatelessWidget {
-  const _VerifiedBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFECFDF3),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.verified_rounded, color: Color(0xFF12B76A), size: 17),
-          SizedBox(width: 6),
-          Text(
-            'Verified traveler',
-            style: TextStyle(
-              color: Color(0xFF027A48),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified_rounded,
+                  color: AppColors.success,
+                  size: 17,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'Verified traveler',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -248,7 +266,7 @@ class _StatisticsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: _cardDecoration(),
       child: const Column(
         children: [
@@ -257,13 +275,13 @@ class _StatisticsCard extends StatelessWidget {
             value: '0',
             icon: Icons.route_rounded,
           ),
-          Divider(height: 24),
+          Divider(height: 26),
           _StatisticRow(
             label: 'Saved places',
             value: '0',
             icon: Icons.bookmark_rounded,
           ),
-          Divider(height: 24),
+          Divider(height: 26),
           _StatisticRow(
             label: 'Reviews',
             value: '0',
@@ -290,13 +308,13 @@ class _StatisticRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF2563EB)),
-        const SizedBox(width: 14),
+        Icon(icon, color: AppColors.primary),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF475467),
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -304,7 +322,7 @@ class _StatisticRow extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: Color(0xFF101828),
+            color: AppColors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -314,13 +332,74 @@ class _StatisticRow extends StatelessWidget {
   }
 }
 
+class _ProfileActionTile extends StatelessWidget {
+  const _ProfileActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(icon, color: AppColors.primary),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(24),
-    border: Border.all(color: const Color(0xFFEAECF0)),
-    boxShadow: const [
-      BoxShadow(color: Color(0x0F101828), blurRadius: 20, offset: Offset(0, 8)),
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(AppRadius.lg),
+    border: Border.all(color: AppColors.border),
+    boxShadow: [
+      BoxShadow(
+        color: AppColors.shadow.withValues(alpha: 0.05),
+        blurRadius: 18,
+        offset: const Offset(0, 7),
+      ),
     ],
   );
 }

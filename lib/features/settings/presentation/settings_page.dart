@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_controller.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../l10n/app_localizations.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -15,7 +16,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   bool _weatherAlertsEnabled = true;
-
   String _selectedDistanceUnit = 'kilometers';
 
   void _showMessage(String message) {
@@ -114,139 +114,149 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final layout = _SettingsLayout.fromWidth(constraints.maxWidth);
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(localizations.settings),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final layout = _SettingsLayout.fromWidth(constraints.maxWidth);
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              layout.horizontalPadding,
-              layout.topPadding,
-              layout.horizontalPadding,
-              40,
-            ),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SettingsHeader(
-                      title: localizations.settings,
-                      subtitle: localizations.settingsDescription,
-                    ),
-                    SizedBox(height: layout.sectionSpacing),
-                    if (layout.useTwoColumns)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              children: [
-                                _AccountSection(
-                                  onPersonalInformationPressed: () {
-                                    _showMessage(
-                                      localizations
-                                          .personalInformationDescription,
-                                    );
-                                  },
-                                  onPrivacyPressed: () {
-                                    _showMessage(
-                                      localizations
-                                          .privacyAndSecurityDescription,
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 20),
-                                _PreferencesSection(
-                                  appController: widget.appController,
-                                  selectedDistanceUnit: _selectedDistanceUnit,
-                                  onLanguagePressed: _selectLanguage,
-                                  onDistanceUnitPressed: _selectDistanceUnit,
-                                ),
-                              ],
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                layout.horizontalPadding,
+                layout.topPadding,
+                layout.horizontalPadding,
+                40,
+              ),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SettingsHeader(
+                        title: localizations.settings,
+                        subtitle: localizations.settingsDescription,
+                      ),
+                      SizedBox(height: layout.sectionSpacing),
+                      if (layout.useTwoColumns)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  _AccountSection(
+                                    onPersonalInformationPressed: () {
+                                      _showMessage(
+                                        localizations
+                                            .personalInformationDescription,
+                                      );
+                                    },
+                                    onPrivacyPressed: () {
+                                      _showMessage(
+                                        localizations
+                                            .privacyAndSecurityDescription,
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _PreferencesSection(
+                                    appController: widget.appController,
+                                    selectedDistanceUnit: _selectedDistanceUnit,
+                                    onLanguagePressed: _selectLanguage,
+                                    onDistanceUnitPressed: _selectDistanceUnit,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                _NotificationsSection(
-                                  notificationsEnabled: _notificationsEnabled,
-                                  weatherAlertsEnabled: _weatherAlertsEnabled,
-                                  onNotificationsChanged:
-                                      _setNotificationsEnabled,
-                                  onWeatherAlertsChanged: _notificationsEnabled
-                                      ? _setWeatherAlertsEnabled
-                                      : null,
-                                ),
-                                const SizedBox(height: 20),
-                                _SupportSection(
-                                  onHelpPressed: () {
-                                    _showMessage(
-                                      localizations.helpCenterDescription,
-                                    );
-                                  },
-                                  onFeedbackPressed: () {
-                                    _showMessage(
-                                      localizations.sendFeedbackDescription,
-                                    );
-                                  },
-                                  onAboutPressed: _showAboutDialog,
-                                ),
-                              ],
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  _NotificationsSection(
+                                    notificationsEnabled: _notificationsEnabled,
+                                    weatherAlertsEnabled: _weatherAlertsEnabled,
+                                    onNotificationsChanged:
+                                        _setNotificationsEnabled,
+                                    onWeatherAlertsChanged:
+                                        _notificationsEnabled
+                                        ? _setWeatherAlertsEnabled
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _SupportSection(
+                                    onHelpPressed: () {
+                                      _showMessage(
+                                        localizations.helpCenterDescription,
+                                      );
+                                    },
+                                    onFeedbackPressed: () {
+                                      _showMessage(
+                                        localizations.sendFeedbackDescription,
+                                      );
+                                    },
+                                    onAboutPressed: _showAboutDialog,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _AccountSection(
-                        onPersonalInformationPressed: () {
-                          _showMessage(
-                            localizations.personalInformationDescription,
-                          );
-                        },
-                        onPrivacyPressed: () {
-                          _showMessage(
-                            localizations.privacyAndSecurityDescription,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      _NotificationsSection(
-                        notificationsEnabled: _notificationsEnabled,
-                        weatherAlertsEnabled: _weatherAlertsEnabled,
-                        onNotificationsChanged: _setNotificationsEnabled,
-                        onWeatherAlertsChanged: _notificationsEnabled
-                            ? _setWeatherAlertsEnabled
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      _PreferencesSection(
-                        appController: widget.appController,
-                        selectedDistanceUnit: _selectedDistanceUnit,
-                        onLanguagePressed: _selectLanguage,
-                        onDistanceUnitPressed: _selectDistanceUnit,
-                      ),
-                      const SizedBox(height: 20),
-                      _SupportSection(
-                        onHelpPressed: () {
-                          _showMessage(localizations.helpCenterDescription);
-                        },
-                        onFeedbackPressed: () {
-                          _showMessage(localizations.sendFeedbackDescription);
-                        },
-                        onAboutPressed: _showAboutDialog,
-                      ),
+                          ],
+                        )
+                      else ...[
+                        _AccountSection(
+                          onPersonalInformationPressed: () {
+                            _showMessage(
+                              localizations.personalInformationDescription,
+                            );
+                          },
+                          onPrivacyPressed: () {
+                            _showMessage(
+                              localizations.privacyAndSecurityDescription,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        _NotificationsSection(
+                          notificationsEnabled: _notificationsEnabled,
+                          weatherAlertsEnabled: _weatherAlertsEnabled,
+                          onNotificationsChanged: _setNotificationsEnabled,
+                          onWeatherAlertsChanged: _notificationsEnabled
+                              ? _setWeatherAlertsEnabled
+                              : null,
+                        ),
+                        const SizedBox(height: 20),
+                        _PreferencesSection(
+                          appController: widget.appController,
+                          selectedDistanceUnit: _selectedDistanceUnit,
+                          onLanguagePressed: _selectLanguage,
+                          onDistanceUnitPressed: _selectDistanceUnit,
+                        ),
+                        const SizedBox(height: 20),
+                        _SupportSection(
+                          onHelpPressed: () {
+                            _showMessage(localizations.helpCenterDescription);
+                          },
+                          onFeedbackPressed: () {
+                            _showMessage(localizations.sendFeedbackDescription);
+                          },
+                          onAboutPressed: _showAboutDialog,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -309,7 +319,7 @@ class _SettingsHeader extends StatelessWidget {
         Text(
           title,
           style: theme.textTheme.headlineMedium?.copyWith(
-            color: theme.colorScheme.onSurface,
+            color: AppColors.textPrimary,
             fontWeight: FontWeight.w800,
             letterSpacing: -1,
           ),
@@ -318,7 +328,7 @@ class _SettingsHeader extends StatelessWidget {
         Text(
           subtitle,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color: AppColors.textSecondary,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -498,29 +508,26 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
-      side: BorderSide(color: theme.colorScheme.outlineVariant),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.onSurface,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 21,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 12),
         Material(
-          color: theme.colorScheme.surface,
-          elevation: 1,
-          shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.12),
-          shape: shape,
+          color: AppColors.surface,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: AppColors.border),
+          ),
           clipBehavior: Clip.antiAlias,
           child: Column(children: children),
         ),
@@ -544,31 +551,30 @@ class _SettingsActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return ListTile(
       onTap: onTap,
+      tileColor: AppColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       leading: _SettingsIcon(icon: icon),
       title: Text(
         title,
-        style: TextStyle(
-          color: colorScheme.onSurface,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          color: colorScheme.onSurfaceVariant,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
           fontSize: 12,
           height: 1.4,
         ),
       ),
-      trailing: Icon(
+      trailing: const Icon(
         Icons.chevron_right_rounded,
-        color: colorScheme.onSurfaceVariant,
+        color: AppColors.textSecondary,
       ),
     );
   }
@@ -589,16 +595,15 @@ class _SettingsValueTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return ListTile(
       onTap: onTap,
+      tileColor: AppColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       leading: _SettingsIcon(icon: icon),
       title: Text(
         title,
-        style: TextStyle(
-          color: colorScheme.onSurface,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
@@ -608,16 +613,16 @@ class _SettingsValueTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 4),
-          Icon(
+          const Icon(
             Icons.chevron_right_rounded,
-            color: colorScheme.onSurfaceVariant,
+            color: AppColors.textSecondary,
           ),
         ],
       ),
@@ -642,20 +647,18 @@ class _SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final enabled = onChanged != null;
 
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
+      tileColor: AppColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
       secondary: _SettingsIcon(icon: icon, enabled: enabled),
       title: Text(
         title,
         style: TextStyle(
-          color: enabled
-              ? colorScheme.onSurface
-              : colorScheme.onSurface.withValues(alpha: 0.45),
+          color: enabled ? AppColors.textPrimary : AppColors.textMuted,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
@@ -663,9 +666,7 @@ class _SettingsSwitchTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          color: enabled
-              ? colorScheme.onSurfaceVariant
-              : colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
+          color: enabled ? AppColors.textSecondary : AppColors.textMuted,
           fontSize: 12,
           height: 1.4,
         ),
@@ -682,22 +683,16 @@ class _SettingsIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(
-          alpha: enabled ? 1 : 0.45,
-        ),
+        color: enabled ? AppColors.primaryContainer : AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(
         icon,
-        color: colorScheme.onPrimaryContainer.withValues(
-          alpha: enabled ? 1 : 0.45,
-        ),
+        color: enabled ? AppColors.primary : AppColors.textMuted,
         size: 22,
       ),
     );
@@ -709,11 +704,7 @@ class _SettingsDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 80,
-      color: Theme.of(context).colorScheme.outlineVariant,
-    );
+    return const Divider(height: 1, indent: 80, color: AppColors.border);
   }
 }
 
@@ -726,36 +717,41 @@ class _LanguageSelectionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            localizations.language,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 16),
-          _LanguageTile(
-            flag: '🇬🇧',
-            title: localizations.english,
-            selected: currentLocale.languageCode == 'en',
-            onTap: () {
-              Navigator.of(context).pop(AppController.englishLocale);
-            },
-          ),
-          _LanguageTile(
-            flag: '🇳🇴',
-            title: localizations.norwegianBokmal,
-            selected: currentLocale.languageCode == 'nb',
-            onTap: () {
-              Navigator.of(context).pop(AppController.norwegianBokmalLocale);
-            },
-          ),
-        ],
+    return ColoredBox(
+      color: AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              localizations.language,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _LanguageTile(
+              flag: '🇬🇧',
+              title: localizations.english,
+              selected: currentLocale.languageCode == 'en',
+              onTap: () {
+                Navigator.of(context).pop(AppController.englishLocale);
+              },
+            ),
+            _LanguageTile(
+              flag: '🇳🇴',
+              title: localizations.norwegianBokmal,
+              selected: currentLocale.languageCode == 'nb',
+              onTap: () {
+                Navigator.of(context).pop(AppController.norwegianBokmalLocale);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -778,15 +774,23 @@ class _LanguageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      tileColor: AppColors.surface,
       onTap: onTap,
       leading: Text(flag, style: const TextStyle(fontSize: 28)),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       trailing: selected
-          ? const Icon(Icons.check_circle_rounded)
-          : const Icon(Icons.chevron_right_rounded),
+          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+          : const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
     );
   }
 }
@@ -800,40 +804,71 @@ class _DistanceSelectionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            localizations.distanceUnits,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(localizations.kilometers),
-            trailing: selectedValue == 'kilometers'
-                ? const Icon(Icons.check_circle_rounded)
-                : const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).pop('kilometers');
-            },
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(localizations.miles),
-            trailing: selectedValue == 'miles'
-                ? const Icon(Icons.check_circle_rounded)
-                : const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).pop('miles');
-            },
-          ),
-        ],
+    return ColoredBox(
+      color: AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              localizations.distanceUnits,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              tileColor: AppColors.surface,
+              title: Text(
+                localizations.kilometers,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              trailing: selectedValue == 'kilometers'
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                    )
+                  : const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+              onTap: () {
+                Navigator.of(context).pop('kilometers');
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              tileColor: AppColors.surface,
+              title: Text(
+                localizations.miles,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              trailing: selectedValue == 'miles'
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                    )
+                  : const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+              onTap: () {
+                Navigator.of(context).pop('miles');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
