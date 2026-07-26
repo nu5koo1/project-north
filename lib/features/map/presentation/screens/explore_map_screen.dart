@@ -385,6 +385,91 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
         .toList(growable: false);
   }
 
+  List<_PlaceCluster> _buildPlaceClusters(List<Place> places) {
+    if (places.isEmpty) {
+      return const <_PlaceCluster>[];
+    }
+
+    if (_currentZoom >= 13) {
+      return places
+          .map(
+            (place) => _PlaceCluster(
+              center: LatLng(place.latitude, place.longitude),
+              places: <Place>[place],
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    final cellSize = _clusterCellSizeForZoom(_currentZoom);
+    final buckets = <String, List<Place>>{};
+
+    for (final place in places) {
+      final latitudeCell = (place.latitude / cellSize).floor();
+      final longitudeCell = (place.longitude / cellSize).floor();
+      final key = '$latitudeCell:$longitudeCell';
+
+      buckets.putIfAbsent(key, () => <Place>[]).add(place);
+    }
+
+    return buckets.values
+        .map((bucketPlaces) {
+          var latitudeSum = 0.0;
+          var longitudeSum = 0.0;
+
+          for (final place in bucketPlaces) {
+            latitudeSum += place.latitude;
+            longitudeSum += place.longitude;
+          }
+
+          return _PlaceCluster(
+            center: LatLng(
+              latitudeSum / bucketPlaces.length,
+              longitudeSum / bucketPlaces.length,
+            ),
+            places: List<Place>.unmodifiable(bucketPlaces),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  double _clusterCellSizeForZoom(double zoom) {
+    if (zoom < 7.5) {
+      return 2.4;
+    }
+
+    if (zoom < 9) {
+      return 1.1;
+    }
+
+    if (zoom < 10.5) {
+      return 0.48;
+    }
+
+    if (zoom < 12) {
+      return 0.22;
+    }
+
+    return 0.1;
+  }
+
+  void _openCluster(_PlaceCluster cluster) {
+    if (cluster.places.length == 1) {
+      _selectPlace(cluster.places.first);
+      return;
+    }
+
+    final nextZoom = (_currentZoom + 2).clamp(_currentZoom, 15.0);
+
+    _mapController.move(cluster.center, nextZoom);
+
+    setState(() {
+      _currentZoom = nextZoom;
+      _selectedPlace = null;
+      _showSearchThisArea = false;
+    });
+  }
+
   void _searchCurrentArea() {
     if (_isApplyingAreaSearch) {
       return;
@@ -748,6 +833,8 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
               ? filteredPlaces
               : const <Place>[];
 
+          final placeClusters = _buildPlaceClusters(markerPlaces);
+
           return Stack(
             children: [
               FlutterMap(
@@ -797,21 +884,36 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                     ),
 
                   MarkerLayer(
-                    markers: markerPlaces
-                        .map((place) {
-                          final markerSize = _markerSize;
-                          final isSelected = _selectedPlace?.id == place.id;
+                    markers: placeClusters
+                        .map((cluster) {
+                          if (cluster.places.length == 1) {
+                            final place = cluster.places.first;
+                            final markerSize = _markerSize;
+                            final isSelected = _selectedPlace?.id == place.id;
+
+                            return Marker(
+                              point: cluster.center,
+                              width: markerSize + 10,
+                              height: markerSize + 10,
+                              child: _PlaceMarker(
+                                icon: _iconForPlace(place),
+                                markerSize: markerSize,
+                                isSelected: isSelected,
+                                onTap: () {
+                                  _selectPlace(place);
+                                },
+                              ),
+                            );
+                          }
 
                           return Marker(
-                            point: LatLng(place.latitude, place.longitude),
-                            width: markerSize + 10,
-                            height: markerSize + 10,
-                            child: _PlaceMarker(
-                              icon: _iconForPlace(place),
-                              markerSize: markerSize,
-                              isSelected: isSelected,
+                            point: cluster.center,
+                            width: 50,
+                            height: 50,
+                            child: _ClusterMarker(
+                              count: cluster.places.length,
                               onTap: () {
-                                _selectPlace(place);
+                                _openCluster(cluster);
                               },
                             ),
                           );
@@ -1206,6 +1308,53 @@ class _ActiveFiltersCard extends StatelessWidget {
               icon: const Icon(Icons.close_rounded, size: 18),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaceCluster {
+  const _PlaceCluster({required this.center, required this.places});
+
+  final LatLng center;
+  final List<Place> places;
+}
+
+class _ClusterMarker extends StatelessWidget {
+  const _ClusterMarker({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+
+    return Semantics(
+      button: true,
+      label: '$count places',
+      child: Material(
+        color: AppColors.primary,
+        elevation: 6,
+        shadowColor: AppColors.shadow.withValues(alpha: 0.22),
+        shape: const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 3),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Center(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
         ),
       ),
     );
