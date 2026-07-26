@@ -19,6 +19,58 @@ class AddPlaceScreen extends StatefulWidget {
 }
 
 class _AddPlaceScreenState extends State<AddPlaceScreen> {
+  static const List<String> _placeTypes = [
+    'Camping',
+    'Picnic area',
+    'Free motorhome area',
+    'Paying motorhome area',
+    'Private car park for campers',
+    'Parking day/night',
+  ];
+
+  static const List<_SelectableOption> _services = [
+    _SelectableOption(
+      value: 'Electricity',
+      icon: Icons.electrical_services_rounded,
+    ),
+    _SelectableOption(value: 'Drinking water', icon: Icons.water_drop_rounded),
+    _SelectableOption(value: 'Toilets', icon: Icons.wc_rounded),
+    _SelectableOption(value: 'Showers', icon: Icons.shower_rounded),
+    _SelectableOption(
+      value: 'Laundry',
+      icon: Icons.local_laundry_service_rounded,
+    ),
+    _SelectableOption(
+      value: 'Washing for motorhomes',
+      icon: Icons.local_car_wash_rounded,
+    ),
+    _SelectableOption(value: 'Boat rental', icon: Icons.sailing_rounded),
+    _SelectableOption(
+      value: 'Camper rental',
+      icon: Icons.airport_shuttle_rounded,
+    ),
+  ];
+
+  static const List<_SelectableOption> _activities = [
+    _SelectableOption(value: 'Swimming', icon: Icons.pool_rounded),
+    _SelectableOption(value: 'Wildlife', icon: Icons.pets_rounded),
+    _SelectableOption(value: 'Fishing', icon: Icons.phishing_rounded),
+    _SelectableOption(
+      value: 'Viewpoint',
+      label: 'View spots',
+      icon: Icons.landscape_rounded,
+    ),
+    _SelectableOption(
+      value: 'Canoe/kayak',
+      label: 'Canoe / kayak',
+      icon: Icons.kayaking_rounded,
+    ),
+    _SelectableOption(
+      value: 'Mountain bike tracks',
+      icon: Icons.pedal_bike_rounded,
+    ),
+  ];
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
@@ -30,25 +82,13 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   late final FirestorePlaceService _placeService;
   late final FirebaseAuth _firebaseAuth;
 
-  String _selectedCategory = 'Camping';
+  String _selectedPlaceType = _placeTypes.first;
+
+  final Set<String> _selectedServices = <String>{};
+  final Set<String> _selectedActivities = <String>{};
 
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
-
-  static const List<String> _categories = [
-    'Camping',
-    'Parking',
-    'Wild camping',
-    'Camper service',
-    'Fishing',
-    'Hiking',
-    'Boat rental',
-    'Viewpoint',
-    'Water point',
-    'Photo spot',
-    'Drone spot',
-    'Wildlife',
-  ];
 
   @override
   void initState() {
@@ -119,6 +159,34 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     return double.parse(value.trim().replaceAll(',', '.'));
   }
 
+  void _toggleService(String service) {
+    if (_isSubmitting || _isGettingLocation) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedServices.contains(service)) {
+        _selectedServices.remove(service);
+      } else {
+        _selectedServices.add(service);
+      }
+    });
+  }
+
+  void _toggleActivity(String activity) {
+    if (_isSubmitting || _isGettingLocation) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedActivities.contains(activity)) {
+        _selectedActivities.remove(activity);
+      } else {
+        _selectedActivities.add(activity);
+      }
+    });
+  }
+
   void _showMessage(String message) {
     if (!mounted) {
       return;
@@ -155,7 +223,8 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       _showMessage('Current location added.');
     } on _LocationException catch (error) {
       _showMessage(error.message);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Location error: $error');
       _showMessage('Location could not be detected. Try again.');
     } finally {
       if (mounted) {
@@ -198,7 +267,9 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
           timeLimit: Duration(seconds: 15),
         ),
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Current position error: $error');
+
       final lastKnownPosition = await Geolocator.getLastKnownPosition();
 
       if (lastKnownPosition != null) {
@@ -234,19 +305,28 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     });
 
     try {
-      final displayName = (user.displayName ?? '').trim();
+      final firebaseDisplayName = (user.displayName ?? '').trim();
       final email = (user.email ?? '').trim();
 
       final draft = PlaceDraft(
         name: _nameController.text,
         description: _descriptionController.text,
-        category: _selectedCategory,
         locationName: _locationNameController.text,
         latitude: _parseCoordinate(_latitudeController.text),
         longitude: _parseCoordinate(_longitudeController.text),
         createdByUserId: user.uid,
-        createdByDisplayName: displayName.isEmpty ? 'Traveler' : displayName,
+        createdByDisplayName: firebaseDisplayName.isEmpty
+            ? 'Traveler'
+            : firebaseDisplayName,
         createdByEmail: email,
+
+        // Старое поле сохраняется для совместимости.
+        category: _selectedPlaceType,
+
+        // Новая структура Firestore.
+        placeType: _selectedPlaceType,
+        services: _selectedServices.toList(growable: false),
+        activities: _selectedActivities.toList(growable: false),
       );
 
       final placeId = await _placeService.createPlace(draft);
@@ -264,7 +344,10 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       Navigator.of(context).pop(true);
     } on PlaceServiceException catch (error) {
       _showMessage(error.message);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Place submission error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       _showMessage('The place could not be submitted. Check your connection.');
     } finally {
       if (mounted) {
@@ -336,6 +419,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                   children: [
                     const _AddPlaceHeader(),
                     const SizedBox(height: AppSpacing.xl),
+
                     _FormLabel(
                       label: 'Place name',
                       child: TextFormField(
@@ -350,20 +434,26 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.lg),
+
                     _FormLabel(
-                      label: 'Category',
+                      label: 'Place type',
+                      helperText:
+                          'Choose the main type that best describes this place.',
                       child: DropdownButtonFormField<String>(
-                        initialValue: _selectedCategory,
+                        initialValue: _selectedPlaceType,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.category_outlined),
                         ),
-                        items: _categories.map((category) {
-                          return DropdownMenuItem<String>(
-                            value: category,
-                            child: Text(category),
-                          );
-                        }).toList(),
+                        items: _placeTypes
+                            .map((placeType) {
+                              return DropdownMenuItem<String>(
+                                value: placeType,
+                                child: Text(placeType),
+                              );
+                            })
+                            .toList(growable: false),
                         onChanged: isBusy
                             ? null
                             : (value) {
@@ -372,12 +462,14 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                                 }
 
                                 setState(() {
-                                  _selectedCategory = value;
+                                  _selectedPlaceType = value;
                                 });
                               },
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.lg),
+
                     _FormLabel(
                       label: 'Location name',
                       child: TextFormField(
@@ -392,7 +484,9 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.lg),
+
                     _CoordinatesSection(
                       latitudeController: _latitudeController,
                       longitudeController: _longitudeController,
@@ -402,27 +496,65 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                       isGettingLocation: _isGettingLocation,
                       onUseCurrentLocation: _useCurrentLocation,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    _SelectionSection(
+                      title: 'Services',
+                      description:
+                          'Select every service that is available at this place.',
+                      selectedCount: _selectedServices.length,
+                      options: _services,
+                      selectedValues: _selectedServices,
+                      enabled: !isBusy,
+                      onOptionPressed: _toggleService,
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    _SelectionSection(
+                      title: 'Activities',
+                      description:
+                          'Select the activities available at or near this place.',
+                      selectedCount: _selectedActivities.length,
+                      options: _activities,
+                      selectedValues: _selectedActivities,
+                      enabled: !isBusy,
+                      onOptionPressed: _toggleActivity,
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
                     _FormLabel(
                       label: 'Description',
+                      helperText:
+                          'Include access, restrictions, terrain and safety information.',
                       child: TextFormField(
                         controller: _descriptionController,
                         enabled: !isBusy,
                         validator: _validateRequired,
                         minLines: 5,
-                        maxLines: 8,
+                        maxLines: 9,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: const InputDecoration(
                           hintText:
-                              'Describe access, facilities, rules, terrain '
-                              'and important safety information.',
+                              'Describe the place, road access, facilities, '
+                              'rules and anything travelers should know.',
                           alignLabelWithHint: true,
                         ),
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.lg),
+
+                    const _SubmissionSummary(),
+
+                    const SizedBox(height: AppSpacing.lg),
+
                     const _ModerationNotice(),
+
                     const SizedBox(height: AppSpacing.xl),
+
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
@@ -445,6 +577,176 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectionSection extends StatelessWidget {
+  const _SelectionSection({
+    required this.title,
+    required this.description,
+    required this.selectedCount,
+    required this.options,
+    required this.selectedValues,
+    required this.enabled,
+    required this.onOptionPressed,
+  });
+
+  final String title;
+  final String description;
+  final int selectedCount;
+  final List<_SelectableOption> options;
+  final Set<String> selectedValues;
+  final bool enabled;
+  final ValueChanged<String> onOptionPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: selectedCount == 0
+                    ? const SizedBox.shrink()
+                    : Container(
+                        key: ValueKey(selectedCount),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '$selectedCount selected',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            description,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: options
+                .map((option) {
+                  final selected = selectedValues.contains(option.value);
+
+                  return _SelectableChip(
+                    option: option,
+                    selected: selected,
+                    enabled: enabled,
+                    onTap: () {
+                      onOptionPressed(option.value);
+                    },
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectableChip extends StatelessWidget {
+  const _SelectableChip({
+    required this.option,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final _SelectableOption option;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.primary : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                option.icon,
+                size: 18,
+                color: selected
+                    ? Colors.white
+                    : enabled
+                    ? AppColors.primary
+                    : AppColors.textMuted,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                option.label,
+                style: TextStyle(
+                  color: selected
+                      ? Colors.white
+                      : enabled
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: 7),
+                const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+              ],
+            ],
           ),
         ),
       ),
@@ -500,6 +802,16 @@ class _CoordinatesSection extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Use your current position or enter exact coordinates manually.',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -600,8 +912,8 @@ class _AddPlaceHeader extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Add accurate information so other travelers can visit '
-                  'responsibly and safely.',
+                  'Choose the main place type, available services and '
+                  'activities so travelers can find it through map filters.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -610,6 +922,42 @@ class _AddPlaceHeader extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubmissionSummary extends StatelessWidget {
+  const _SubmissionSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 21),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Services and activities are optional. Only select options '
+              'that are genuinely available at this location.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -659,13 +1007,16 @@ class _ModerationNotice extends StatelessWidget {
 }
 
 class _FormLabel extends StatelessWidget {
-  const _FormLabel({required this.label, required this.child});
+  const _FormLabel({required this.label, required this.child, this.helperText});
 
   final String label;
+  final String? helperText;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final description = helperText;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -677,11 +1028,35 @@ class _FormLabel extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
+        if (description != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.sm),
         child,
       ],
     );
   }
+}
+
+class _SelectableOption {
+  const _SelectableOption({
+    required this.value,
+    required this.icon,
+    String? label,
+  }) : label = label ?? value;
+
+  final String value;
+  final String label;
+  final IconData icon;
 }
 
 class _LocationException implements Exception {

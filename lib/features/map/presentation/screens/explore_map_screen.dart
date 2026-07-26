@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,7 @@ import '../../../destinations/data/models/place.dart';
 import '../../../destinations/data/services/firestore_place_service.dart';
 import '../../../destinations/presentation/screens/place_details_screen.dart';
 import '../../../subscription/presentation/screens/premium_paywall_screen.dart';
+import '../../data/norway_geojson_loader.dart';
 import '../models/place_filter_catalog.dart';
 import '../widgets/map_filters_sheet.dart';
 
@@ -21,13 +24,13 @@ class ExploreMapScreen extends StatefulWidget {
   const ExploreMapScreen({
     super.key,
     this.placeService,
-    this.isPremium = true,
+    this.isPremium = false,
   });
 
   final FirestorePlaceService? placeService;
 
-  /// Временное значение для разработки.
-  /// Перед публикацией заменить реальной проверкой подписки.
+  /// Временный флаг для разработки.
+  /// Позже нужно заменить реальным статусом подписки.
   final bool isPremium;
 
   @override
@@ -42,66 +45,18 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
 
   static const String _favoritePlaceIdsKey = 'villmark_favorite_place_ids';
 
-  /// Упрощённый контур материковой Норвегии.
-  ///
-  /// Используется только для визуального затемнения стран,
-  /// в которых сервис пока недоступен.
-  static const List<LatLng> _norwayServiceArea = [
-    LatLng(57.70, 4.20),
-    LatLng(58.10, 5.10),
-    LatLng(58.70, 5.20),
-    LatLng(59.30, 5.00),
-    LatLng(60.00, 4.50),
-    LatLng(61.00, 4.50),
-    LatLng(62.00, 4.80),
-    LatLng(63.00, 5.40),
-    LatLng(64.00, 6.20),
-    LatLng(65.00, 7.50),
-    LatLng(66.00, 9.20),
-    LatLng(67.00, 11.10),
-    LatLng(68.00, 13.10),
-    LatLng(69.00, 15.40),
-    LatLng(70.00, 18.40),
-    LatLng(71.20, 23.00),
-    LatLng(71.50, 28.50),
-    LatLng(70.90, 31.60),
-    LatLng(69.80, 30.90),
-    LatLng(69.10, 29.30),
-    LatLng(68.40, 27.70),
-    LatLng(67.70, 25.80),
-    LatLng(66.90, 23.80),
-    LatLng(66.10, 21.80),
-    LatLng(65.30, 19.80),
-    LatLng(64.60, 17.80),
-    LatLng(63.80, 15.90),
-    LatLng(63.00, 14.30),
-    LatLng(62.30, 12.90),
-    LatLng(61.60, 11.80),
-    LatLng(60.90, 11.50),
-    LatLng(60.20, 11.20),
-    LatLng(59.60, 11.00),
-    LatLng(59.00, 10.70),
-    LatLng(58.50, 9.70),
-    LatLng(58.00, 8.10),
-  ];
-
-  static const List<LatLng> _worldPolygon = [
-    LatLng(-85, -180),
-    LatLng(-85, 180),
-    LatLng(85, 180),
-    LatLng(85, -180),
-  ];
-
   final MapController _mapController = MapController();
 
   late final FirestorePlaceService _placeService;
   late final Stream<List<Place>> _placesStream;
 
-  List<Place> _allPlaces = const [];
-  List<Place> _areaPlaces = const [];
+  List<Place> _allPlaces = const <Place>[];
+  List<Place> _areaPlaces = const <Place>[];
+
+  List<List<LatLng>> _norwayPolygons = const <List<LatLng>>[];
 
   Set<String> _favoritePlaceIds = <String>{};
-  Set<String> _selectedCategories = <String>{};
+  Set<String> _selectedFilters = <String>{};
 
   Place? _selectedPlace;
 
@@ -109,9 +64,18 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
 
   double _currentZoom = _initialZoom;
 
+  LatLng? _userLocation;
+
+  bool _isMapReady = false;
+  bool _isLocatingUser = false;
+  bool _hasTriedInitialLocation = false;
+
   bool _hasReceivedPlaces = false;
   bool _showSearchThisArea = false;
   bool _isApplyingAreaSearch = false;
+  bool _isLoadingNorwayBoundary = true;
+
+  String? _norwayBoundaryError;
 
   @override
   void initState() {
@@ -121,6 +85,194 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     _placesStream = _placeService.watchApprovedPlaces();
 
     unawaited(_loadFavorites());
+    unawaited(_loadNorwayBoundary());
+    unawaited(_initializeUserLocation());
+  }
+
+  Future<void> _initializeUserLocation() async {
+    if (_hasTriedInitialLocation) {
+      return;
+    }
+
+    _hasTriedInitialLocation = true;
+
+    await _locateUser(moveMap: true, showErrors: false);
+  }
+
+  Future<void> _locateUser({
+    required bool moveMap,
+    required bool showErrors,
+  }) async {
+    if (_isLocatingUser) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLocatingUser = true;
+      });
+    }
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        throw const _LocationException('Включи геолокацию на устройстве.');
+      }
+
+      var permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        throw const _LocationException('Доступ к геолокации не предоставлен.');
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw const _LocationException(
+          'Разреши доступ к геолокации в настройках устройства.',
+        );
+      }
+
+      Position? position;
+
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } catch (_) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        throw const _LocationException('Не удалось определить местоположение.');
+      }
+
+      final location = LatLng(position.latitude, position.longitude);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _userLocation = location;
+      });
+
+      if (moveMap && _isMapReady) {
+        _moveToResolvedLocation(location, showOutsideNorwayMessage: showErrors);
+      }
+    } on _LocationException catch (error) {
+      if (showErrors) {
+        _showMapMessage(error.message);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Location error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (showErrors) {
+        _showMapMessage('Не удалось определить местоположение.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocatingUser = false;
+        });
+      }
+    }
+  }
+
+  void _moveToResolvedLocation(
+    LatLng location, {
+    required bool showOutsideNorwayMessage,
+  }) {
+    final isInsideNorway = _isPointInsideServiceArea(location);
+
+    _mapController.move(
+      isInsideNorway ? location : _norwayCenter,
+      isInsideNorway ? 11 : _initialZoom,
+    );
+
+    setState(() {
+      _currentZoom = isInsideNorway ? 11 : _initialZoom;
+      _showSearchThisArea = false;
+      _selectedPlace = null;
+    });
+
+    if (!isInsideNorway && showOutsideNorwayMessage) {
+      _showMapMessage('Сервис пока доступен только в Норвегии.');
+    }
+  }
+
+  void _showMapMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
+  bool _isPointInsideServiceArea(LatLng point) {
+    if (_norwayPolygons.isEmpty) {
+      return _isInsideNorwayBounds(point);
+    }
+
+    return _norwayPolygons.any(
+      (polygon) => _isPointInsidePolygon(point, polygon),
+    );
+  }
+
+  bool _isInsideNorwayBounds(LatLng point) {
+    return point.latitude >= 57.5 &&
+        point.latitude <= 81.5 &&
+        point.longitude >= 4 &&
+        point.longitude <= 32;
+  }
+
+  bool _isPointInsidePolygon(LatLng point, List<LatLng> polygon) {
+    if (polygon.length < 3) {
+      return false;
+    }
+
+    final x = point.longitude;
+    final y = point.latitude;
+
+    var inside = false;
+    var previousIndex = polygon.length - 1;
+
+    for (var index = 0; index < polygon.length; index++) {
+      final current = polygon[index];
+      final previous = polygon[previousIndex];
+
+      final currentX = current.longitude;
+      final currentY = current.latitude;
+      final previousX = previous.longitude;
+      final previousY = previous.latitude;
+
+      final crossesLatitude = (currentY > y) != (previousY > y);
+
+      if (crossesLatitude) {
+        final intersectionX =
+            (previousX - currentX) * (y - currentY) / (previousY - currentY) +
+            currentX;
+
+        if (x < intersectionX) {
+          inside = !inside;
+        }
+      }
+
+      previousIndex = index;
+    }
+
+    return inside;
   }
 
   Future<void> _loadFavorites() async {
@@ -136,6 +288,36 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     setState(() {
       _favoritePlaceIds = savedIds.toSet();
     });
+  }
+
+  Future<void> _loadNorwayBoundary() async {
+    try {
+      final polygons = await NorwayGeoJsonLoader.loadPolygons();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _norwayPolygons = polygons;
+        _isLoadingNorwayBoundary = false;
+        _norwayBoundaryError = null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Norway GeoJSON load error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _norwayPolygons = const <List<LatLng>>[];
+        _isLoadingNorwayBoundary = false;
+        _norwayBoundaryError =
+            'Граница Норвегии не загрузилась. Проверь norway.geojson.';
+      });
+    }
   }
 
   Future<void> _saveFavorites() async {
@@ -188,16 +370,16 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     });
   }
 
-  List<Place> _applyCategoryFilters(List<Place> places) {
-    if (_selectedCategories.isEmpty) {
+  List<Place> _applyFilters(List<Place> places) {
+    if (_selectedFilters.isEmpty) {
       return places;
     }
 
     return places
         .where((place) {
-          return PlaceFilterCatalog.categoryMatchesSelection(
-            category: place.category,
-            selectedValues: _selectedCategories,
+          return PlaceFilterCatalog.placeMatchesAllGroups(
+            place: place,
+            selectedValues: _selectedFilters,
           );
         })
         .toList(growable: false);
@@ -228,17 +410,6 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     });
   }
 
-  void _showAllNorway() {
-    _mapController.move(_norwayCenter, _initialZoom);
-
-    setState(() {
-      _currentZoom = _initialZoom;
-      _areaPlaces = _allPlaces;
-      _selectedPlace = null;
-      _showSearchThisArea = false;
-    });
-  }
-
   void _selectPlace(Place place) {
     setState(() {
       _selectedPlace = place;
@@ -260,7 +431,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
         builder: (context) {
           return PlaceDetailsScreen(
             place: place,
-            icon: _iconForCategory(place.category),
+            icon: _iconForPlace(place),
             isFavorite: _favoritePlaceIds.contains(place.id),
             isPremium: widget.isPremium,
             onFavoritePressed: () async {
@@ -347,7 +518,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
       isScrollControlled: true,
       backgroundColor: AppColors.background,
       builder: (sheetContext) {
-        return MapFiltersSheet(initialSelection: _selectedCategories);
+        return MapFiltersSheet(initialSelection: _selectedFilters);
       },
     );
 
@@ -356,7 +527,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     }
 
     setState(() {
-      _selectedCategories = result;
+      _selectedFilters = result;
       _selectedPlace = null;
     });
   }
@@ -452,8 +623,10 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     return 27;
   }
 
-  IconData _iconForCategory(String category) {
-    switch (category.trim().toLowerCase()) {
+  IconData _iconForPlace(Place place) {
+    final placeType = place.placeType.trim().toLowerCase();
+
+    switch (placeType) {
       case 'camping':
         return Icons.cabin_rounded;
 
@@ -477,7 +650,21 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
       case 'parking day/night':
       case 'day and night parking':
         return Icons.local_parking_rounded;
+    }
 
+    if (place.activities.isNotEmpty) {
+      return _iconForActivity(place.activities.first);
+    }
+
+    if (place.services.isNotEmpty) {
+      return _iconForService(place.services.first);
+    }
+
+    return Icons.place_rounded;
+  }
+
+  IconData _iconForService(String service) {
+    switch (service.trim().toLowerCase()) {
       case 'electricity':
         return Icons.electrical_services_rounded;
 
@@ -506,6 +693,13 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
       case 'camper rentals':
         return Icons.airport_shuttle_rounded;
 
+      default:
+        return Icons.build_circle_outlined;
+    }
+  }
+
+  IconData _iconForActivity(String activity) {
+    switch (activity.trim().toLowerCase()) {
       case 'swimming':
       case 'swimming spot':
         return Icons.pool_rounded;
@@ -534,7 +728,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
         return Icons.pedal_bike_rounded;
 
       default:
-        return Icons.place_rounded;
+        return Icons.explore_rounded;
     }
   }
 
@@ -548,7 +742,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
 
           _synchronizePlaces(places);
 
-          final filteredPlaces = _applyCategoryFilters(_areaPlaces);
+          final filteredPlaces = _applyFilters(_areaPlaces);
 
           final markerPlaces = _markersAreVisible
               ? filteredPlaces
@@ -563,6 +757,18 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   initialZoom: _initialZoom,
                   minZoom: 3,
                   maxZoom: 18,
+                  onMapReady: () {
+                    _isMapReady = true;
+
+                    final location = _userLocation;
+
+                    if (location != null) {
+                      _moveToResolvedLocation(
+                        location,
+                        showOutsideNorwayMessage: false,
+                      );
+                    }
+                  },
                   onPositionChanged: _handleMapPositionChanged,
                 ),
                 children: [
@@ -571,26 +777,25 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                     userAgentPackageName: 'com.villmark.app',
                     maxNativeZoom: _maximumNativeZoom,
                   ),
+
                   if (_selectedLayer == _VillmarkMapLayer.standard)
-                    PolygonLayer(
-                      polygons: [
-                        Polygon(
-                          points: _worldPolygon,
-                          color: const Color(0x223E8A5B),
-                          borderStrokeWidth: 0,
+                    const _StandardMapGreenTint(),
+
+                  if (_norwayPolygons.isNotEmpty)
+                    _GeoJsonServiceAreaMask(norwayPolygons: _norwayPolygons),
+
+                  if (_userLocation != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _userLocation!,
+                          width: 34,
+                          height: 34,
+                          child: const _UserLocationMarker(),
                         ),
                       ],
                     ),
-                  PolygonLayer(
-                    polygons: [
-                      Polygon(
-                        points: _worldPolygon,
-                        holePointsList: const [_norwayServiceArea],
-                        color: const Color(0x8A26312B),
-                        borderStrokeWidth: 0,
-                      ),
-                    ],
-                  ),
+
                   MarkerLayer(
                     markers: markerPlaces
                         .map((place) {
@@ -602,7 +807,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                             width: markerSize + 10,
                             height: markerSize + 10,
                             child: _PlaceMarker(
-                              icon: _iconForCategory(place.category),
+                              icon: _iconForPlace(place),
                               markerSize: markerSize,
                               isSelected: isSelected,
                               onTap: () {
@@ -613,6 +818,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                         })
                         .toList(growable: false),
                   ),
+
                   SimpleAttributionWidget(
                     source: Text(
                       _mapAttribution,
@@ -625,6 +831,15 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   ),
                 ],
               ),
+
+              if (_isLoadingNorwayBoundary)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+
               Positioned(
                 top: AppSpacing.md,
                 right: AppSpacing.md,
@@ -634,7 +849,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                       icon: Icons.tune_rounded,
                       tooltip: 'Premium filters',
                       showPremiumBadge: !widget.isPremium,
-                      active: _selectedCategories.isNotEmpty,
+                      active: _selectedFilters.isNotEmpty,
                       onPressed: () {
                         unawaited(_openFilters());
                       },
@@ -657,22 +872,24 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   ],
                 ),
               ),
-              if (_selectedCategories.isNotEmpty)
+
+              if (_selectedFilters.isNotEmpty)
                 Positioned(
                   top: AppSpacing.md,
                   left: AppSpacing.md,
                   right: 82,
                   child: _ActiveFiltersCard(
-                    selectedCount: _selectedCategories.length,
+                    selectedCount: _selectedFilters.length,
                     visiblePlaceCount: filteredPlaces.length,
                     onClear: () {
                       setState(() {
-                        _selectedCategories.clear();
+                        _selectedFilters.clear();
                         _selectedPlace = null;
                       });
                     },
                   ),
                 ),
+
               if (_showSearchThisArea)
                 Positioned(
                   left: 64,
@@ -692,16 +909,42 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                     label: const Text('Search this area'),
                   ),
                 ),
+
               Positioned(
                 right: AppSpacing.md,
                 bottom: _selectedPlace == null ? 92 : 246,
                 child: FloatingActionButton.small(
-                  heroTag: 'show-all-norway',
-                  onPressed: _showAllNorway,
-                  tooltip: 'Show all Norway',
-                  child: const Icon(Icons.center_focus_strong_rounded),
+                  heroTag: 'locate-user',
+                  onPressed: _isLocatingUser
+                      ? null
+                      : () {
+                          unawaited(
+                            _locateUser(moveMap: true, showErrors: true),
+                          );
+                        },
+                  tooltip: 'Моё местоположение',
+                  child: _isLocatingUser
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded),
                 ),
               ),
+
+              if (_norwayBoundaryError != null)
+                Positioned(
+                  top: AppSpacing.md,
+                  left: AppSpacing.md,
+                  right: 82,
+                  child: _MapMessageBanner(
+                    icon: Icons.map_outlined,
+                    iconColor: AppColors.warning,
+                    message: _norwayBoundaryError!,
+                  ),
+                ),
+
               if (snapshot.hasError)
                 Positioned(
                   top: AppSpacing.md,
@@ -713,6 +956,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                     message: _errorMessage(snapshot.error),
                   ),
                 ),
+
               if (!snapshot.hasError &&
                   snapshot.connectionState == ConnectionState.active &&
                   _allPlaces.isEmpty)
@@ -726,6 +970,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                     message: 'No approved places are available yet.',
                   ),
                 ),
+
               if (_selectedPlace case final place?)
                 Positioned(
                   left: AppSpacing.md,
@@ -733,7 +978,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   bottom: AppSpacing.md,
                   child: _SelectedPlaceCard(
                     place: place,
-                    icon: _iconForCategory(place.category),
+                    icon: _iconForPlace(place),
                     isFavorite: _favoritePlaceIds.contains(place.id),
                     isPremium: widget.isPremium,
                     onOpenDetails: () {
@@ -758,6 +1003,102 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     }
 
     return 'Places could not be loaded.';
+  }
+}
+
+class _StandardMapGreenTint extends StatelessWidget {
+  const _StandardMapGreenTint();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: IgnorePointer(child: ColoredBox(color: Color(0x083E8A5B))),
+    );
+  }
+}
+
+class _GeoJsonServiceAreaMask extends StatelessWidget {
+  const _GeoJsonServiceAreaMask({required this.norwayPolygons});
+
+  final List<List<LatLng>> norwayPolygons;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = MapCamera.of(context);
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: _GeoJsonServiceAreaMaskPainter(
+            camera: camera,
+            norwayPolygons: norwayPolygons,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GeoJsonServiceAreaMaskPainter extends CustomPainter {
+  const _GeoJsonServiceAreaMaskPainter({
+    required this.camera,
+    required this.norwayPolygons,
+  });
+
+  final MapCamera camera;
+  final List<List<LatLng>> norwayPolygons;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (norwayPolygons.isEmpty) {
+      return;
+    }
+
+    final fullScreenPath = ui.Path()
+      ..fillType = ui.PathFillType.evenOdd
+      ..addRect(ui.Rect.fromLTWH(0, 0, size.width, size.height));
+
+    for (final polygon in norwayPolygons) {
+      if (polygon.length < 3) {
+        continue;
+      }
+
+      final polygonPath = ui.Path();
+
+      for (var index = 0; index < polygon.length; index++) {
+        final projectedPoint = camera.projectAtZoom(
+          polygon[index],
+          camera.zoom,
+        );
+
+        final screenX = projectedPoint.dx - camera.pixelOrigin.dx;
+        final screenY = projectedPoint.dy - camera.pixelOrigin.dy;
+
+        if (index == 0) {
+          polygonPath.moveTo(screenX, screenY);
+        } else {
+          polygonPath.lineTo(screenX, screenY);
+        }
+      }
+
+      polygonPath.close();
+      fullScreenPath.addPath(polygonPath, ui.Offset.zero);
+    }
+
+    canvas.drawPath(
+      fullScreenPath,
+      ui.Paint()
+        ..color = const ui.Color(0x705A625D)
+        ..style = ui.PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GeoJsonServiceAreaMaskPainter oldDelegate) {
+    return oldDelegate.camera.center != camera.center ||
+        oldDelegate.camera.zoom != camera.zoom ||
+        oldDelegate.camera.rotation != camera.rotation ||
+        oldDelegate.norwayPolygons != norwayPolygons;
   }
 }
 
@@ -979,7 +1320,7 @@ class _SelectedPlaceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      place.category,
+                      place.placeType,
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 12,
@@ -1258,6 +1599,41 @@ class _MapLayerTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _UserLocationMarker extends StatelessWidget {
+  const _UserLocationMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF2D7DF4), width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 7,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(5),
+      child: const DecoratedBox(
+        decoration: BoxDecoration(
+          color: Color(0xFF2D7DF4),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationException implements Exception {
+  const _LocationException(this.message);
+
+  final String message;
 }
 
 class _MapMessageBanner extends StatelessWidget {

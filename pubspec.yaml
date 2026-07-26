@@ -52,6 +52,8 @@ flutter:
     - assets/images/villmark_icon_android.png
     - assets/images/villmark_icon_android_foreground.png
     - assets/images/villmark_icon_android_monochrome.png
+    - assets/geo/norway.geojson
+    - assets/geo/svalbard.geojson
 
 flutter_native_splash:
   color: "#0E2C1B"
